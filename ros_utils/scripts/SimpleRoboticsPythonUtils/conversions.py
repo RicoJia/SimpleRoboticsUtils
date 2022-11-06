@@ -1,6 +1,6 @@
 import tf_conversions.posemath
 import numpy as np
-from geometry_msgs.msgs import Pose
+from geometry_msgs.msg import Pose
 
 def cv2_rvec_to_tf2_quat(cv, rvec):
     # we need a homogeneous matrix but OpenCV only gives us a 3x3 rotation matrix
