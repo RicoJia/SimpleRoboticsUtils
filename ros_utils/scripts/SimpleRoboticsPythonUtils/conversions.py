@@ -1,7 +1,8 @@
 from tf.transformations import quaternion_matrix
 import numpy as np
-from geometry_msgs.msg import Pose, Transform, Quaternion
+from geometry_msgs.msg import Pose, Transform, Quaternion, Point, Vector3
 import tf
+from typing import Union
 
 def cv2_rvec_to_tf2_quat(cv, rvec):
     """Convert opencv rvec to tf2.Quaternion
@@ -39,10 +40,15 @@ def cv2_transform_2_tf2(cv, rvec, tvec):
     quaternion = cv2_rvec_to_tf2_quat(rvec)
     return Pose(tvec, quaternion)
 
-def quat_2_np_array(q: Quaternion):
-    return np.array([q.x, q.y, q.z, q.w])
+def quat_2_np_matrix(q: Quaternion):
+    q_arr = np.array([q.x, q.y, q.z, q.w])
+    T = np.matrix(quaternion_matrix(q_arr))
+    return T
 
-def transform_to_cv2_rvec_tvec(cv, trans: Transform):
-    q_arr = quat_2_np_array(trans.rotation)
-    quat_mat = np.matrix(quaternion_matrix(q_arr))
-    print(quat_mat)
+def translation_like_2_np_array(trans: Union[Vector3, Point]):
+    return np.array([trans.x, trans.y, trans.z])
+
+def transform_to_cv2_rotation_tvec(cv, trans: Transform):
+    T = quat_2_np_matrix(trans.rotation)
+    t = translation_like_2_np_array(trans.translation)
+    return T[:3, :3], t
