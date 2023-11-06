@@ -1,8 +1,0 @@
-.gitignore
-setup.py
-simple_robotics_python_utils/__init__.py
-simple_robotics_python_utils/shared_memory_pub_sub.py
-simple_robotics_python_utils.egg-info/PKG-INFO
-simple_robotics_python_utils.egg-info/SOURCES.txt
-simple_robotics_python_utils.egg-info/dependency_links.txt
-simple_robotics_python_utils.egg-info/top_level.txt
