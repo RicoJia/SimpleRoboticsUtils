@@ -1,1 +1,3 @@
 **/__pycache__/
+build/
+simple_robotics_python_utils.egg-info/*
