@@ -66,7 +66,9 @@ class SharedMemoryPubSubBase:
         2. Heartbeat repeating the same announcement msg
             - While everybody takes notes of everybody's name. If your heart beat is missing, you are no longer here.
         3. Vaporation message: Hey, I'm gone
-    6. To keep things simple, we do not need the above mechanism. We each topic is 8k in diskspace.
+    6. To keep things simple, we do not need the above mechanism. Each topic is 8k in diskspace.
+    So, the lack of heart beat meachanism means: we DO NOT DELETE SHARED MEMORY, once created, ASSUMING that 
+    wouldn't cause overflows
     """
 
     def __init__(self, topic: str, data_type: type, arr_size: int, verbose=False):
