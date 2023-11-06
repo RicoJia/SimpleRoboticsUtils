@@ -141,9 +141,7 @@ class SharedMemoryPub(SharedMemoryPubSubBase):
             self.mmap[: len(packed_data)] = packed_data
             if self._verbose:
                 # TODO Remember to remove
-                print(
-                    f"publishing: {msg_arr}, unpacked_data: {struct.unpack(self.struct_data_type_str, self.mmap[:self.data_size])}"
-                )
+                print(f"publishing: {msg_arr}")
         except IndexError:
             self._remove_shared_memory()
             self._init_shared_memory()
@@ -176,8 +174,8 @@ class SharedMemorySub(SharedMemoryPubSubBase):
                 unpacked_msg = struct.unpack(
                     self.struct_data_type_str, self.mmap[: self.data_size]
                 )
-                # TODO Remember to remove
-                print(f"unpacked_msg: {unpacked_msg}")
+                if self._verbose:
+                    print(f"unpacked_msg: {unpacked_msg}")
             except struct.error as e:
                 self._remove_shared_memory()
                 self._init_shared_memory()
