@@ -77,20 +77,13 @@ class Discoverer:
                 data, addr = local_udp_sock.recvfrom(1024)
 
                 print(f"Subscriber: received {data} from {addr}, going to say hi")
-                topic, type, socket_path = self.unpack_hello_msg(data.decode())
+                topic, type, socket_path = self._unpack_hello_msg(data.decode())
                 if type == DiscovererTypes.PUB.name:
                     with socket.socket(
                         socket.AF_UNIX, socket.SOCK_STREAM
                     ) as tcp_socket_to_pubs:
                         tcp_socket_to_pubs.connect(socket_path)
                         tcp_socket_to_pubs.send(str(self.uuid).encode())
-
-    def _create_hello_msg(self, socket_path: str):
-        return f"{self.topic},{self.type.name},{socket_path}"
-
-    def unpack_hello_msg(self, msg: str):
-        topic, type, socket_path = msg.split(",")
-        return topic, type, socket_path
 
     def publisher_thread_func(self):
         # 1. Set up Unix domain socket for TCP
@@ -125,6 +118,13 @@ class Discoverer:
                         )
                 except socket.timeout:
                     pass
+
+    def _create_hello_msg(self, socket_path: str):
+        return f"{self.topic},{self.type.name},{socket_path}"
+
+    def _unpack_hello_msg(self, msg: str):
+        topic, type, socket_path = msg.split(",")
+        return topic, type, socket_path
 
     def _cleanup(self):
         if self.type == DiscovererTypes.PUB:
