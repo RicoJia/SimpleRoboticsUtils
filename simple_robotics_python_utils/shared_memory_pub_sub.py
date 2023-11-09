@@ -19,32 +19,12 @@ import time
 import atexit
 import ctypes
 import typing
+from pub_sub_utils import Rate, spin
 
 
 ###############################################
 # Util Functions
 ###############################################
-class Rate:
-    """Notes
-    1. There's no convenient way to adaptively sleep for a certain amount of time.
-    """
-
-    def __init__(self, rate):
-        self.sleep_time = 1.0 / rate
-        self.next_wakeup_time = time.perf_counter() + self.sleep_time
-
-    def sleep(self):
-        time.sleep(max(0.0, self.next_wakeup_time - time.perf_counter()))
-        self.next_wakeup_time = time.perf_counter() + self.sleep_time
-
-
-def spin():
-    while True:
-        try:
-            time.sleep(0.1)
-        except KeyboardInterrupt:
-            break
-
 
 def _get_size(type: type) -> int:
     lookup = {float: ctypes.c_double, bool: ctypes.c_bool, int: ctypes.c_int}
@@ -90,14 +70,11 @@ class SharedMemoryPubSubBase:
             self.shm = posix_ipc.SharedMemory(
                 self.topic, flags=posix_ipc.O_CREX, size=self.data_size
             )
-            # TODO Remember to remove
             print(f"creating new shared memory")
         try:
-            # TODO Remember to remove
             print(f"Found existing semaphore")
             self.sem = posix_ipc.Semaphore(self.topic)
         except posix_ipc.ExistentialError:
-            # TODO Remember to remove
             print(f"creating new semaphore")
             self.sem = posix_ipc.Semaphore(
                 self.topic, flags=posix_ipc.O_CREX, initial_value=1
