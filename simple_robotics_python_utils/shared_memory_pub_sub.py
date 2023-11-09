@@ -11,20 +11,22 @@ Some notes are:-
     - UDP multicast: a multicast packet can be sent to multiple listening processes. TCP does not have that feature
     - ROS1 uses 11311 as the default port.
 """
-import threading
-import posix_ipc
-import mmap
-import struct
-import time
 import atexit
 import ctypes
+import mmap
+import struct
+import threading
+import time
 import typing
-from pub_sub_utils import Rate, spin
 
+import posix_ipc
+
+from pub_sub_utils import Rate, spin
 
 ###############################################
 # Util Functions
 ###############################################
+
 
 def _get_size(type: type) -> int:
     lookup = {float: ctypes.c_double, bool: ctypes.c_bool, int: ctypes.c_int}
@@ -47,7 +49,7 @@ class SharedMemoryPubSubBase:
             - While everybody takes notes of everybody's name. If your heart beat is missing, you are no longer here.
         3. Vaporation message: Hey, I'm gone
     6. To keep things simple, we do not need the above mechanism. Each topic is 8k in diskspace.
-    So, the lack of heart beat meachanism means: we DO NOT DELETE SHARED MEMORY, once created, ASSUMING that 
+    So, the lack of heart beat meachanism means: we DO NOT DELETE SHARED MEMORY, once created, ASSUMING that
     wouldn't cause overflows
     """
 
