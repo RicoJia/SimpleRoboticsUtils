@@ -5,7 +5,6 @@ import socket
 import struct
 import threading
 import time
-import uuid
 from datetime import datetime
 
 from pub_sub_utils import spin
@@ -18,6 +17,9 @@ class DiscovererTypes(enum.Enum):
 
 DISCOVERER_UDP_PORT = 5007
 DISCOVERER_MULTICAST_GROUP_ADDR = "224.0.0.1"
+UDP_BROADCAST_TIMEOUT = 3
+HELLO = "h"
+BYE = "b"
 
 
 class Discoverer:
@@ -39,92 +41,80 @@ class Discoverer:
         discoverer_type: DiscovererTypes,
         port: int = DISCOVERER_UDP_PORT,
     ):
+        if not isinstance(discoverer_type, DiscovererTypes):
+            raise TypeError(
+                f"Discoverer type must be PUB or SUB. Instead we got {discoverer_type}"
+            )
         self.type = discoverer_type
         self.port = port
         self.partners: set[str] = set()
-        self.uuid = uuid.uuid4()
-        if self.type == DiscovererTypes.PUB:
-            self.th = threading.Thread(target=self.publisher_thread_func, daemon=False)
-        elif self.type == DiscovererTypes.SUB:
-            self.th = threading.Thread(target=self.subscriber_thread_func, daemon=False)
-        else:
-            raise TypeError(
-                f"Discoverer type must be PUB or SUB. Instead we got {self.type}"
-            )
         self.topic = topic
+        self.socket_path = f"/tmp/{self.topic.lstrip('/')}_{self.type.name}_{datetime.now().isoformat()}"
+        self.th = threading.Thread(target=self.main, daemon=False)
         atexit.register(self._cleanup)
         self.th.start()
 
-    def subscriber_thread_func(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as local_udp_sock:
-            local_udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            local_udp_sock.bind((DISCOVERER_MULTICAST_GROUP_ADDR, self.port))
-            # Teslling the socket to add to the multicast group
-            multicast_req = struct.pack(
-                "4sl",
-                socket.inet_aton(DISCOVERER_MULTICAST_GROUP_ADDR),
-                socket.INADDR_ANY,
-            )
-            # socket.IPPROTO_IP allows changes to IP layer, like multicast
-            local_udp_sock.setsockopt(
-                socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, multicast_req
-            )
-            # now, the socket can receive multicast packets from the group, on local machine
+    def main(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
+            self._configure_socket_for_listening(udp_socket)
+            self._create_and_send_msg(HELLO, self.socket_path, udp_socket)
+            self._spin_and_manage_connection_with_other_type(udp_socket)
 
-            print(f"Subscriber: started listening on UDP at port  {self.port}")
-            while threading.main_thread().is_alive():
-                # This is blocking
-                data, addr = local_udp_sock.recvfrom(1024)
+    def _configure_socket_for_listening(self, udp_socket):
+        # Below code allows us to write to the UDP port
+        udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # disable self messages looping back
+        # udp_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
+        udp_socket.bind(("", self.port))
+        udp_socket.settimeout(UDP_BROADCAST_TIMEOUT)
+        # Teslling the socket to add to the multicast group
+        multicast_req = struct.pack(
+            "4sl",
+            socket.inet_aton(DISCOVERER_MULTICAST_GROUP_ADDR),
+            socket.INADDR_ANY,
+        )
+        # socket.IPPROTO_IP allows changes to IP layer, like multicast
+        # now, the socket can receive multicast packets from the group, on local machine
+        udp_socket.setsockopt(
+            socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, multicast_req
+        )
+        # Below code allows us to send to the UDP port
+        # Limit time to live (ttl) to 1,
+        # so only max 1 hop (routers crossed) packets are allowed to make
+        # Before getting discarded
+        ttl = struct.pack("b", 1)
+        udp_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
 
-                print(f"Subscriber: received {data} from {addr}, going to say hi")
-                topic, type, socket_path = self._unpack_hello_msg(data.decode())
-                if type == DiscovererTypes.PUB.name:
-                    with socket.socket(
-                        socket.AF_UNIX, socket.SOCK_STREAM
-                    ) as tcp_socket_to_pubs:
-                        tcp_socket_to_pubs.connect(socket_path)
-                        tcp_socket_to_pubs.send(str(self.uuid).encode())
+    def _spin_and_manage_connection_with_other_type(self, udp_socket):
+        other_type = {
+            DiscovererTypes.SUB: DiscovererTypes.PUB,
+            DiscovererTypes.PUB: DiscovererTypes.SUB,
+        }[self.type]
+        while threading.main_thread().is_alive():
+            # This is blocking
+            try:
+                data, addr = udp_socket.recvfrom(1024)
+                header, topic, type, socket_path = self._unpack_hello_msg(data.decode())
+                if type == self.type.name:
+                    continue
+                if header == HELLO and type == other_type.name and topic == self.topic:
+                    if socket_path not in self.partners:
+                        self.partners.add(socket_path)
+                        print(f"new socket: {self.partners}")
+                if header == BYE and type == other_type.name and topic == self.topic:
+                    self.partners.discard(socket_path)
+                    print(f"removed socket: {self.partners}")
+            except socket.timeout:
+                self._create_and_send_msg(HELLO, self.socket_path, udp_socket)
+        self._create_and_send_msg(BYE, self.socket_path, udp_socket)
 
-    def publisher_thread_func(self):
-        # 1. Set up Unix domain socket for TCP
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as tcp_listen_sock:
-            # 0 means a random ephemeral port from the OS
-            socket_path = f"/tmp/{self.topic.lstrip('/')}_{self.type.name}_{datetime.now().isoformat()}"
-            tcp_listen_sock.bind(socket_path)
-            # this is not blocking, simply sets up how many clients can be queued up
-            tcp_listen_sock.listen()
-            tcp_listen_sock.settimeout(2.0)
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as local_udp_sock:
-                # Limit time to live (ttl) to 1,
-                # so only max 1 hop (routers crossed) packets are allowed to make
-                # Before getting discarded
-                ttl = struct.pack("b", 1)
-                local_udp_sock.setsockopt(
-                    socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl
-                )
-                message = self._create_hello_msg(socket_path)
-                local_udp_sock.sendto(
-                    message.encode(), (DISCOVERER_MULTICAST_GROUP_ADDR, self.port)
-                )
-
-            while threading.main_thread().is_alive():
-                try:
-                    conn, subscriber_tcp_addr = tcp_listen_sock.accept()
-                    with conn:
-                        subscriber_uuid = conn.recv(1024).decode()
-                        self.partners.add(subscriber_uuid)
-                        print(
-                            f"Rico: subscriber: {subscriber_uuid}, my subs: {self.partners}"
-                        )
-                except socket.timeout:
-                    pass
-
-    def _create_hello_msg(self, socket_path: str):
-        return f"{self.topic},{self.type.name},{socket_path}"
+    def _create_and_send_msg(self, header: str, socket_path: str, sock):
+        message = f"{header},{self.topic},{self.type.name},{socket_path}"
+        sock.sendto(message.encode(), (DISCOVERER_MULTICAST_GROUP_ADDR, self.port))
 
     def _unpack_hello_msg(self, msg: str):
-        topic, type, socket_path = msg.split(",")
-        return topic, type, socket_path
+        header, topic, type, socket_path = msg.split(",")
+        return header, topic, type, socket_path
 
     def _cleanup(self):
         if self.type == DiscovererTypes.PUB:
@@ -146,4 +136,4 @@ if __name__ == "__main__":
     elif args.spawn_type == "pub":
         pub_discoverer = Discoverer("/test_topic", DiscovererTypes.PUB)
         # sleep so the publisher thread has time to shake hands
-        time.sleep(1)
+        time.sleep(6)
