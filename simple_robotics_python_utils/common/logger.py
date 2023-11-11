@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import logging
 
+
 class ColorCode:
     RED = '\033[91m'
     DARK_RED = '\033[31m'
@@ -21,6 +22,7 @@ class ColorFormatter(logging.Formatter):
         logging.ERROR: ColorCode.RED,
         logging.CRITICAL: ColorCode.DARK_RED
     }
+
     def format(self, record):
         record.name = f'{ColorCode.CYAN}{record.name}{ColorCode.RESET}'
         record.levelname = f'{self.COLOR_MAP[record.levelno]}{record.levelname}{ColorCode.RESET}'
@@ -29,11 +31,11 @@ class ColorFormatter(logging.Formatter):
         parts[0] = f"{ColorCode.MAGENTA}{parts[0]}{ColorCode.RESET}"
         msg = " - ".join(parts)
         return msg
-            
 
-def get_logger(name: str, print_level: str="INFO"):
+
+def get_logger(name: str, print_level: str = "INFO"):
     logger = logging.getLogger(name)
-    # Python caches loggers with the same name. If we get a cached logger but add 
+    # Python caches loggers with the same name. If we get a cached logger but add
     # a new handler, messages will be printed twice
     if not logger.handlers:
         level = getattr(logging, print_level.upper())
@@ -44,6 +46,7 @@ def get_logger(name: str, print_level: str="INFO"):
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
     return logger
+
 
 if __name__ == "__main__":
     l1 = get_logger("MY_LOGGER", print_level="DEBUG")

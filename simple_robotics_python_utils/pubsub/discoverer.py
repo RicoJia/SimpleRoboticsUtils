@@ -5,12 +5,12 @@ import socket
 import struct
 import threading
 import time
+from collections import namedtuple
 from datetime import datetime
 from typing import Dict
-from collections import namedtuple
 
-from simple_robotics_python_utils.pubsub.pub_sub_utils import spin
 from simple_robotics_python_utils.common.logger import get_logger
+from simple_robotics_python_utils.pubsub.pub_sub_utils import spin
 
 
 class DiscovererTypes(enum.Enum):
@@ -24,6 +24,7 @@ UDP_BROADCAST_TIMEOUT = 6
 CONNECTION_EXPIRATION_TIMEOUT = UDP_BROADCAST_TIMEOUT * 3
 HELLO = "h"
 BYE = "b"
+
 
 class Discoverer:
     """
@@ -53,8 +54,8 @@ class Discoverer:
         self.port = port
         self.partners: Dict[str, float] = {}
         self.logger = get_logger(
-            name = self.__class__.__name__,
-            print_level = "DEBUG" if debug else "INFO"
+            name=self.__class__.__name__,
+            print_level="DEBUG" if debug else "INFO"
         )
         self.topic = topic
         self.socket_path = f"/tmp/{self.topic.lstrip('/')}_{self.type.name}_{datetime.now().isoformat()}"
@@ -101,7 +102,7 @@ class Discoverer:
         while threading.main_thread().is_alive():
             try:
                 data, addr = udp_socket.recvfrom(1024)
-                # Note: we can hear messages we multicast ourselves. 
+                # Note: we can hear messages we multicast ourselves.
                 # However, loop back doesn't apply to multicast because it will fail on others' multicast messages
                 header, topic, type, socket_path = self._unpack_hello_msg(data.decode())
                 if type == self.type.name:
@@ -110,7 +111,7 @@ class Discoverer:
                 if header == HELLO and type == other_type.name and topic == self.topic:
                     # update will automatically add / update
                     if not socket_path in self.partners:
-                        self.partners.update({socket_path: time.time()+CONNECTION_EXPIRATION_TIMEOUT})
+                        self.partners.update({socket_path: time.time() + CONNECTION_EXPIRATION_TIMEOUT})
                         # This can make UDP socket sleep a bit longer
                         self._create_and_send_msg(HELLO, self.socket_path, udp_socket)
                         self.logger.debug(f"Added socket: {self.partners}")
@@ -123,11 +124,11 @@ class Discoverer:
         self._create_and_send_msg(BYE, self.socket_path, udp_socket)
 
     def _prune_potential_gone_partners(self):
-        prune_list = [socket_path for socket_path, expiration_time in self.partners.items() if expiration_time < time.time()]
+        prune_list = [socket_path for socket_path,
+                      expiration_time in self.partners.items() if expiration_time < time.time()]
         for socket_path in prune_list:
             self.partners.pop(socket_path, None)
         self.logger.debug(f'Current partners: {self.partners}')
-        
 
     def _create_and_send_msg(self, header: str, socket_path: str, sock):
         message = f"{header},{self.topic},{self.type.name},{socket_path}"
