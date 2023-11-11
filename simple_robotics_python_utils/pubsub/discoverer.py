@@ -6,8 +6,11 @@ import struct
 import threading
 import time
 from datetime import datetime
+from typing import Dict
+from collections import namedtuple
 
-from pub_sub_utils import spin
+from simple_robotics_python_utils.pubsub.pub_sub_utils import spin
+from simple_robotics_python_utils.common.logger import get_logger
 
 
 class DiscovererTypes(enum.Enum):
@@ -17,10 +20,10 @@ class DiscovererTypes(enum.Enum):
 
 DISCOVERER_UDP_PORT = 5007
 DISCOVERER_MULTICAST_GROUP_ADDR = "224.0.0.1"
-UDP_BROADCAST_TIMEOUT = 3
+UDP_BROADCAST_TIMEOUT = 6
+CONNECTION_EXPIRATION_TIMEOUT = UDP_BROADCAST_TIMEOUT * 3
 HELLO = "h"
 BYE = "b"
-
 
 class Discoverer:
     """
@@ -40,6 +43,7 @@ class Discoverer:
         topic: str,
         discoverer_type: DiscovererTypes,
         port: int = DISCOVERER_UDP_PORT,
+        debug: bool = False
     ):
         if not isinstance(discoverer_type, DiscovererTypes):
             raise TypeError(
@@ -47,7 +51,11 @@ class Discoverer:
             )
         self.type = discoverer_type
         self.port = port
-        self.partners: set[str] = set()
+        self.partners: Dict[str, float] = {}
+        self.logger = get_logger(
+            name = self.__class__.__name__,
+            print_level = "DEBUG" if debug else "INFO"
+        )
         self.topic = topic
         self.socket_path = f"/tmp/{self.topic.lstrip('/')}_{self.type.name}_{datetime.now().isoformat()}"
         self.th = threading.Thread(target=self.main, daemon=False)
@@ -91,22 +99,35 @@ class Discoverer:
             DiscovererTypes.PUB: DiscovererTypes.SUB,
         }[self.type]
         while threading.main_thread().is_alive():
-            # This is blocking
             try:
                 data, addr = udp_socket.recvfrom(1024)
+                # Note: we can hear messages we multicast ourselves. 
+                # However, loop back doesn't apply to multicast because it will fail on others' multicast messages
                 header, topic, type, socket_path = self._unpack_hello_msg(data.decode())
                 if type == self.type.name:
                     continue
+                self._prune_potential_gone_partners()
                 if header == HELLO and type == other_type.name and topic == self.topic:
-                    if socket_path not in self.partners:
-                        self.partners.add(socket_path)
-                        print(f"new socket: {self.partners}")
+                    # update will automatically add / update
+                    if not socket_path in self.partners:
+                        self.partners.update({socket_path: time.time()+CONNECTION_EXPIRATION_TIMEOUT})
+                        # This can make UDP socket sleep a bit longer
+                        self._create_and_send_msg(HELLO, self.socket_path, udp_socket)
+                        self.logger.debug(f"Added socket: {self.partners}")
                 if header == BYE and type == other_type.name and topic == self.topic:
-                    self.partners.discard(socket_path)
-                    print(f"removed socket: {self.partners}")
+                    # pop will delete the socket path in partners. If key doesn't exist, it won't yell
+                    self.partners.pop(socket_path, None)
+                    self.logger.debug(f"Removed socket: {self.partners}")
             except socket.timeout:
                 self._create_and_send_msg(HELLO, self.socket_path, udp_socket)
         self._create_and_send_msg(BYE, self.socket_path, udp_socket)
+
+    def _prune_potential_gone_partners(self):
+        prune_list = [socket_path for socket_path, expiration_time in self.partners.items() if expiration_time < time.time()]
+        for socket_path in prune_list:
+            self.partners.pop(socket_path, None)
+        self.logger.debug(f'Current partners: {self.partners}')
+        
 
     def _create_and_send_msg(self, header: str, socket_path: str, sock):
         message = f"{header},{self.topic},{self.type.name},{socket_path}"
@@ -131,9 +152,9 @@ if __name__ == "__main__":
     parser.add_argument("spawn_type", type=str)
     args = parser.parse_args()
     if args.spawn_type == "sub":
-        sub_discoverer = Discoverer("/test_topic", DiscovererTypes.SUB)
+        sub_discoverer = Discoverer("/test_topic", DiscovererTypes.SUB, debug=True)
         spin()
     elif args.spawn_type == "pub":
-        pub_discoverer = Discoverer("/test_topic", DiscovererTypes.PUB)
+        pub_discoverer = Discoverer("/test_topic", DiscovererTypes.PUB, debug=True)
         # sleep so the publisher thread has time to shake hands
         time.sleep(6)
