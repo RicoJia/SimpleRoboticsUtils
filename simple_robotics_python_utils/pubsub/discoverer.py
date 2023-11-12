@@ -44,7 +44,7 @@ class Discoverer:
         topic: str,
         discoverer_type: DiscovererTypes,
         port: int = DISCOVERER_UDP_PORT,
-        debug: bool = False
+        debug: bool = False,
     ):
         if not isinstance(discoverer_type, DiscovererTypes):
             raise TypeError(
@@ -54,8 +54,7 @@ class Discoverer:
         self.port = port
         self.partners: Dict[str, float] = {}
         self.logger = get_logger(
-            name=self.__class__.__name__,
-            print_level="DEBUG" if debug else "INFO"
+            name=self.__class__.__name__, print_level="DEBUG" if debug else "INFO"
         )
         self._at_least_one_partner_event = threading.Event()
         self.topic = topic
@@ -63,7 +62,7 @@ class Discoverer:
         self.th = threading.Thread(target=self._main, daemon=False)
         self._current_connection_start_time: Optional[float] = None
         atexit.register(self._cleanup)
-    
+
     def start_discovery(self):
         self.th.start()
 
@@ -130,39 +129,43 @@ class Discoverer:
                 if header == HELLO and type == other_type.name and topic == self.topic:
                     # update will automatically add / update
                     if not socket_path in self.partners:
-                        self._state_update(start = True, socket_path=socket_path)
+                        self._state_update(start=True, socket_path=socket_path)
                         # This can make UDP socket sleep a bit longer
                         self._create_and_send_msg(HELLO, self.socket_path, udp_socket)
                         self.logger.debug(f"Added socket: {self.partners}")
                 if header == BYE and type == other_type.name and topic == self.topic:
                     # pop will delete the socket path in partners. If key doesn't exist, it won't yell
-                    self._state_update(start = False, socket_path=socket_path)
+                    self._state_update(start=False, socket_path=socket_path)
                     self.logger.debug(f"Removed socket: {self.partners}")
             except socket.timeout:
                 self._create_and_send_msg(HELLO, self.socket_path, udp_socket)
         self._create_and_send_msg(BYE, self.socket_path, udp_socket)
 
-
     def _state_update(self, start: bool, socket_path: str):
-            if start:
-                if not self.partners:
-                    self._current_connection_start_time = time.time()
-                    self._at_least_one_partner_event.set()
-                self.partners.update({socket_path: time.time() + CONNECTION_EXPIRATION_TIMEOUT})
-            else:
-                self.partners.pop(socket_path, None)
-                if not self.partners:
-                    self._current_connection_start_time = None
-                    self._at_least_one_partner_event.clear()
-                
+        if start:
+            if not self.partners:
+                self._current_connection_start_time = time.time()
+                self._at_least_one_partner_event.set()
+            self.partners.update(
+                {socket_path: time.time() + CONNECTION_EXPIRATION_TIMEOUT}
+            )
+        else:
+            self.partners.pop(socket_path, None)
+            if not self.partners:
+                self._current_connection_start_time = None
+                self._at_least_one_partner_event.clear()
+
     def _prune_potential_gone_partners(self):
-        prune_list = [socket_path for socket_path,
-                      expiration_time in self.partners.items() if expiration_time < time.time()]
+        prune_list = [
+            socket_path
+            for socket_path, expiration_time in self.partners.items()
+            if expiration_time < time.time()
+        ]
         for socket_path in prune_list:
             self.partners.pop(socket_path, None)
         if not self.partners:
             self._at_least_one_partner_event.clear()
-        self.logger.debug(f'Current partners: {self.partners}')
+        self.logger.debug(f"Current partners: {self.partners}")
 
     def _create_and_send_msg(self, header: str, socket_path: str, sock):
         message = f"{header},{self.topic},{self.type.name},{socket_path}"
@@ -192,9 +195,9 @@ if __name__ == "__main__":
         while True:
             should_proceed = sub_discoverer.wait_to_proceed(1)
             if should_proceed:
-                print(f'Proceed')
+                print(f"Proceed")
             else:
-                print(f'Not proceed')
+                print(f"Not proceed")
     elif args.spawn_type == "pub":
         pub_discoverer = Discoverer("/test_topic", DiscovererTypes.WRITER, debug=True)
         pub_discoverer.start_discovery()

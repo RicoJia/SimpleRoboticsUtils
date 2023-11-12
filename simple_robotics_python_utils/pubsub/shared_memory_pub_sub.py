@@ -52,35 +52,45 @@ class SharedMemoryPubSubBase:
     6. To keep things simple, we do not need the above mechanism. Each topic is 8k in diskspace.
     """
 
-    def __init__(self, topic: str, data_type: type, arr_size: int, discover_type: DiscovererTypes, debug=False):
+    def __init__(
+        self,
+        topic: str,
+        data_type: type,
+        arr_size: int,
+        discover_type: DiscovererTypes,
+        debug=False,
+    ):
         self.topic = topic
         self.data_type = data_type
         self.data_size = arr_size * _get_size(data_type)
         self.timestamp_size = _get_size(float)
-        self.logger = get_logger(f"{self.topic}_{self.__class__.__name__}", print_level="DEBUG" if debug else "INFO")
+        self.logger = get_logger(
+            f"{self.topic}_{self.__class__.__name__}",
+            print_level="DEBUG" if debug else "INFO",
+        )
         self._init_shared_memory()
         struct_pack_lookup = {float: "d", bool: "?", int: "i"}
         self.struct_data_type_str = struct_pack_lookup[data_type] * arr_size
         atexit.register(self.__cleanup)
         self._discoverer = Discoverer(
-            topic = self.topic,
-            discoverer_type=discover_type,
-            debug = True
+            topic=self.topic, discoverer_type=discover_type, debug=True
         )
         self._discoverer.start_discovery()
+
     def _init_shared_memory(self):
         def init_shm(name: str, size):
             try:
-                shm = posix_ipc.SharedMemory(
-                    name, flags=posix_ipc.O_CREX, size=size
-                )
+                shm = posix_ipc.SharedMemory(name, flags=posix_ipc.O_CREX, size=size)
             except posix_ipc.ExistentialError:
                 shm = posix_ipc.SharedMemory(name)
             mmap_obj = mmap.mmap(shm.fd, shm.size)
             shm.close_fd()
             return shm, mmap_obj
+
         self.shm, self.mmap = init_shm(self.topic, self.data_size)
-        self.timestamp_shm, self.timestamp_mmap = init_shm(f"{self.topic}_timestamp", self.timestamp_size)
+        self.timestamp_shm, self.timestamp_mmap = init_shm(
+            f"{self.topic}_timestamp", self.timestamp_size
+        )
         try:
             self.logger.debug(f"Found existing semaphore")
             self.sem = posix_ipc.Semaphore(self.topic)
@@ -95,18 +105,23 @@ class SharedMemoryPubSubBase:
         By design, this is only called when there's a shared memory error
         Not during clean up.
         """
+
         def unlink_shm_or_semaphore(entity):
             try:
                 entity.unlink()
             except posix_ipc.ExistentialError:
                 pass
+
         for entity in (self.shm, self.timestamp_shm, self.sem):
             unlink_shm_or_semaphore(self.shm)
 
     def __cleanup(self):
-        self.logger.debug(f"{self.__class__.__name__} instance for topic {self.topic} is terminated")
+        self.logger.debug(
+            f"{self.__class__.__name__} instance for topic {self.topic} is terminated"
+        )
         for mmap_obj in (self.mmap, self.timestamp_mmap):
             mmap_obj.close()
+
 
 class SharedMemoryPub(SharedMemoryPubSubBase):
     def __init__(self, topic: str, data_type: type, arr_size: int, debug=False):
@@ -134,7 +149,7 @@ class SharedMemoryPub(SharedMemoryPubSubBase):
                     print(
                         "WARNING: Previous use of the shared memory is incompatible. It's now cleaned"
                     )
-            
+
 
 class SharedMemorySub(SharedMemoryPubSubBase):
     def __init__(
@@ -155,14 +170,21 @@ class SharedMemorySub(SharedMemoryPubSubBase):
         last_msg_timestamp: float = 0
         while threading.main_thread().is_alive():
             if self._discoverer.wait_to_proceed(timeout=1):
-                connection_start_timestamp = self._discoverer.get_current_connection_start_time_time()
-                with self.sem: 
-                    current_msg_timestamp = float(struct.unpack(
-                        "d", self.timestamp_mmap[: self.timestamp_size]
-                    )[0])
-                    if not current_msg_timestamp or current_msg_timestamp == last_msg_timestamp:
+                connection_start_timestamp = (
+                    self._discoverer.get_current_connection_start_time_time()
+                )
+                with self.sem:
+                    current_msg_timestamp = float(
+                        struct.unpack("d", self.timestamp_mmap[: self.timestamp_size])[
+                            0
+                        ]
+                    )
+                    if (
+                        not current_msg_timestamp
+                        or current_msg_timestamp == last_msg_timestamp
+                    ):
                         continue
-                    self.logger.debug(f'current_msg_timestamp: {current_msg_timestamp}')
+                    self.logger.debug(f"current_msg_timestamp: {current_msg_timestamp}")
                     if current_msg_timestamp > connection_start_timestamp:
                         try:
                             unpacked_msg = struct.unpack(
