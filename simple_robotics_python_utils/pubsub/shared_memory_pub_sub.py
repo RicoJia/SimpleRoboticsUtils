@@ -184,7 +184,6 @@ class SharedMemorySub(SharedMemoryPubSubBase):
                         or current_msg_timestamp == last_msg_timestamp
                     ):
                         continue
-                    self.logger.debug(f"current_msg_timestamp: {current_msg_timestamp}")
                     if current_msg_timestamp > connection_start_timestamp:
                         try:
                             unpacked_msg = struct.unpack(
