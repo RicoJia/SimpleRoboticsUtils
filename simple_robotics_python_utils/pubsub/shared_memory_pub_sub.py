@@ -58,6 +58,8 @@ class SharedMemoryPubSubBase:
         data_type: type,
         arr_size: int,
         discover_type: DiscovererTypes,
+        start_connection_callback: typing.Callable[[], None] = None,
+        no_connection_callback: typing.Callable[[], None] = None,
         debug=False,
     ):
         self.topic = topic
@@ -73,7 +75,11 @@ class SharedMemoryPubSubBase:
         self.struct_data_type_str = struct_pack_lookup[data_type] * arr_size
         atexit.register(self.__cleanup)
         self._discoverer = Discoverer(
-            topic=self.topic, discoverer_type=discover_type, debug=debug
+            topic=self.topic, 
+            discoverer_type=discover_type, 
+            start_connection_callback = start_connection_callback, 
+            no_connection_callback = no_connection_callback, 
+            debug=debug
         )
         self._discoverer.start_discovery()
 
@@ -81,6 +87,7 @@ class SharedMemoryPubSubBase:
         def init_shm(name: str, size):
             try:
                 shm = posix_ipc.SharedMemory(name, flags=posix_ipc.O_CREX, size=size)
+                self.logger.debug(f"{self.__class__.__name__} found existing shm for {name}")
             except posix_ipc.ExistentialError:
                 shm = posix_ipc.SharedMemory(name)
             mmap_obj = mmap.mmap(shm.fd, shm.size)
@@ -124,8 +131,23 @@ class SharedMemoryPubSubBase:
 
 
 class SharedMemoryPub(SharedMemoryPubSubBase):
-    def __init__(self, topic: str, data_type: type, arr_size: int, debug=False):
-        super().__init__(topic, data_type, arr_size, DiscovererTypes.WRITER, debug)
+    def __init__(
+        self, 
+        topic: str, 
+        data_type: type, 
+        arr_size: int, 
+        start_connection_callback: typing.Callable[[], None] = None,
+        no_connection_callback: typing.Callable[[], None] = None,
+        debug=False
+        ):
+        super().__init__(
+            topic, 
+            data_type, 
+            arr_size, 
+            DiscovererTypes.WRITER,
+            start_connection_callback, 
+            no_connection_callback,
+            debug)
 
     def publish(self, msg_arr: typing.List[typing.Any]):
         # Timeout set to 0, so we just check if there's at least one subscriber
@@ -159,9 +181,18 @@ class SharedMemorySub(SharedMemoryPubSubBase):
         arr_size: int,
         read_frequency: int,
         callback: typing.Callable[[tuple], None],
+        start_connection_callback: typing.Callable[[tuple], None] = None,
+        no_connection_callback: typing.Callable[[], None] = None,
         debug=False,
     ):
-        super().__init__(topic, data_type, arr_size, DiscovererTypes.READER, debug)
+        super().__init__(
+            topic, 
+            data_type, 
+            arr_size, 
+            DiscovererTypes.READER, 
+            start_connection_callback,
+            no_connection_callback, 
+            debug)
         self.callback = callback
         self.rate = Rate(read_frequency)
         self._th = threading.Thread(target=self.__run, daemon=False)

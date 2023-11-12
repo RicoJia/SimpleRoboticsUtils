@@ -12,6 +12,8 @@ from typing import Dict, Optional
 from simple_robotics_python_utils.common.logger import get_logger
 from simple_robotics_python_utils.pubsub.pub_sub_utils import spin
 
+import typing
+
 
 class DiscovererTypes(enum.Enum):
     WRITER = enum.auto()
@@ -20,8 +22,8 @@ class DiscovererTypes(enum.Enum):
 
 DISCOVERER_UDP_PORT = 5007
 DISCOVERER_MULTICAST_GROUP_ADDR = "224.0.0.1"
-UDP_BROADCAST_TIMEOUT = 6
-CONNECTION_EXPIRATION_TIMEOUT = UDP_BROADCAST_TIMEOUT * 3
+UDP_BROADCAST_TIMEOUT = 3
+CONNECTION_EXPIRATION_TIMEOUT = UDP_BROADCAST_TIMEOUT * 5
 HELLO = "h"
 BYE = "b"
 
@@ -44,6 +46,8 @@ class Discoverer:
         topic: str,
         discoverer_type: DiscovererTypes,
         port: int = DISCOVERER_UDP_PORT,
+        start_connection_callback: typing.Callable[[], None] = None,
+        no_connection_callback: typing.Callable[[], None] = None,
         debug: bool = False,
     ):
         if not isinstance(discoverer_type, DiscovererTypes):
@@ -52,6 +56,8 @@ class Discoverer:
             )
         self.type = discoverer_type
         self.port = port
+        self.no_connection_callback = no_connection_callback
+        self.start_connection_callback = start_connection_callback
         self.partners: Dict[str, float] = {}
         self.logger = get_logger(
             name=self.__class__.__name__, print_level="DEBUG" if debug else "INFO"
@@ -129,10 +135,10 @@ class Discoverer:
                 if header == HELLO and type == other_type.name and topic == self.topic:
                     # update will automatically add / update
                     if not socket_path in self.partners:
-                        self._state_update(start=True, socket_path=socket_path)
                         # This can make UDP socket sleep a bit longer
                         self._create_and_send_msg(HELLO, self.socket_path, udp_socket)
                         self.logger.debug(f"Added socket: {self.partners}")
+                    self._state_update(start=True, socket_path=socket_path)
                 if header == BYE and type == other_type.name and topic == self.topic:
                     # pop will delete the socket path in partners. If key doesn't exist, it won't yell
                     self._state_update(start=False, socket_path=socket_path)
@@ -146,6 +152,8 @@ class Discoverer:
             if not self.partners:
                 self._current_connection_start_time = time.time()
                 self._at_least_one_partner_event.set()
+                if self.start_connection_callback:
+                    self.start_connection_callback()
             self.partners.update(
                 {socket_path: time.time() + CONNECTION_EXPIRATION_TIMEOUT}
             )
@@ -153,6 +161,8 @@ class Discoverer:
             self.partners.pop(socket_path, None)
             if not self.partners:
                 self._current_connection_start_time = None
+                if self.no_connection_callback:
+                    self.no_connection_callback()
                 self._at_least_one_partner_event.clear()
 
     def _prune_potential_gone_partners(self):
