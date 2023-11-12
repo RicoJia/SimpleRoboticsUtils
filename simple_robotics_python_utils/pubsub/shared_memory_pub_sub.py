@@ -158,9 +158,11 @@ class SharedMemorySub(SharedMemoryPubSubBase):
         data_type: type,
         arr_size: int,
         read_frequency: int,
+        callback: typing.Callable[[tuple], None],
         debug=False,
     ):
         super().__init__(topic, data_type, arr_size, DiscovererTypes.READER, debug)
+        self.callback = callback
         self.rate = Rate(read_frequency)
         self._th = threading.Thread(target=self.__run, daemon=False)
         self._th.start()
@@ -189,6 +191,7 @@ class SharedMemorySub(SharedMemoryPubSubBase):
                                     self.struct_data_type_str, self.mmap[: self.data_size]
                                 )
                                 last_msg_timestamp = current_msg_timestamp
+                                self.callback(unpacked_msg)
                                 self.logger.debug(f"unpacked_msg: {unpacked_msg}")
                             except struct.error as e:
                                 self._remove_shared_memory()
