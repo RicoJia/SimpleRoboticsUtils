@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import time
+
+
 class Rate:
     """Notes
     1. There's no convenient way to adaptively sleep for a certain amount of time.
