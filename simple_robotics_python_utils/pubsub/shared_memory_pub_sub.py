@@ -224,7 +224,7 @@ if __name__ == "__main__":
             topic="test_topic",
             data_type=int,
             arr_size=len(msg_ls),
-            read_frequency=10,
+            read_frequency=50,
             debug=True,
         )
         spin()
