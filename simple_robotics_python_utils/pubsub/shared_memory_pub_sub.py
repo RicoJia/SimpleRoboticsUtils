@@ -20,8 +20,9 @@ import time
 import typing
 
 import posix_ipc
-
-from pub_sub_utils import Rate, spin
+from simple_robotics_python_utils.pubsub.pub_sub_utils import spin, Rate
+from simple_robotics_python_utils.common.logger import get_logger
+from simple_robotics_python_utils.pubsub.discoverer import Discoverer, DiscovererTypes
 
 ###############################################
 # Util Functions
@@ -49,88 +50,91 @@ class SharedMemoryPubSubBase:
             - While everybody takes notes of everybody's name. If your heart beat is missing, you are no longer here.
         3. Vaporation message: Hey, I'm gone
     6. To keep things simple, we do not need the above mechanism. Each topic is 8k in diskspace.
-    So, the lack of heart beat meachanism means: we DO NOT DELETE SHARED MEMORY, once created, ASSUMING that
-    wouldn't cause overflows
     """
 
-    def __init__(self, topic: str, data_type: type, arr_size: int, verbose=False):
+    def __init__(self, topic: str, data_type: type, arr_size: int, discover_type: DiscovererTypes, debug=False):
         self.topic = topic
         self.data_type = data_type
         self.data_size = arr_size * _get_size(data_type)
-        self._verbose = verbose
+        self.timestamp_size = _get_size(float)
+        self.logger = get_logger(f"{self.topic}_{self.__class__.__name__}", print_level="DEBUG" if debug else "INFO")
         self._init_shared_memory()
         struct_pack_lookup = {float: "d", bool: "?", int: "i"}
         self.struct_data_type_str = struct_pack_lookup[data_type] * arr_size
         atexit.register(self.__cleanup)
-
+        self._discoverer = Discoverer(
+            topic = self.topic,
+            discoverer_type=discover_type,
+            debug = True
+        )
+        self._discoverer.start_discovery()
     def _init_shared_memory(self):
+        def init_shm(name: str, size):
+            try:
+                shm = posix_ipc.SharedMemory(
+                    name, flags=posix_ipc.O_CREX, size=size
+                )
+            except posix_ipc.ExistentialError:
+                shm = posix_ipc.SharedMemory(name)
+            mmap_obj = mmap.mmap(shm.fd, shm.size)
+            shm.close_fd()
+            return shm, mmap_obj
+        self.shm, self.mmap = init_shm(self.topic, self.data_size)
+        self.timestamp_shm, self.timestamp_mmap = init_shm(f"{self.topic}_timestamp", self.timestamp_size)
         try:
-            self.shm = posix_ipc.SharedMemory(self.topic)
-            # TODO Remember to remove
-            print(f"Found existing shared memory")
-        except posix_ipc.ExistentialError:
-            self.shm = posix_ipc.SharedMemory(
-                self.topic, flags=posix_ipc.O_CREX, size=self.data_size
-            )
-            print(f"creating new shared memory")
-        try:
-            print(f"Found existing semaphore")
+            self.logger.debug(f"Found existing semaphore")
             self.sem = posix_ipc.Semaphore(self.topic)
         except posix_ipc.ExistentialError:
-            print(f"creating new semaphore")
+            self.logger.debug(f"creating new semaphore")
             self.sem = posix_ipc.Semaphore(
                 self.topic, flags=posix_ipc.O_CREX, initial_value=1
             )
-        self.mmap = mmap.mmap(self.shm.fd, self.shm.size)
-        self.shm.close_fd()
 
     def _remove_shared_memory(self):
         """
         By design, this is only called when there's a shared memory error
         Not during clean up.
         """
-        try:
-            self.shm.unlink()
-        except posix_ipc.ExistentialError:
-            pass
-        try:
-            self.sem.unlink()
-            print(f"Sem unlinked successfully")
-        except posix_ipc.ExistentialError:
-            pass
+        def unlink_shm_or_semaphore(entity):
+            try:
+                entity.unlink()
+            except posix_ipc.ExistentialError:
+                pass
+        for entity in (self.shm, self.timestamp_shm, self.sem):
+            unlink_shm_or_semaphore(self.shm)
 
     def __cleanup(self):
-        if self._verbose:
-            print(
-                f"{self.__class__.__name__} instance for topic {self.topic} is terminated"
-            )
-        self.mmap.close()
-
+        self.logger.debug(f"{self.__class__.__name__} instance for topic {self.topic} is terminated")
+        for mmap_obj in (self.mmap, self.timestamp_mmap):
+            mmap_obj.close()
 
 class SharedMemoryPub(SharedMemoryPubSubBase):
-    def __init__(self, topic: str, data_type: type, arr_size: int, verbose=False):
-        super().__init__(topic, data_type, arr_size, verbose)
+    def __init__(self, topic: str, data_type: type, arr_size: int, debug=False):
+        super().__init__(topic, data_type, arr_size, DiscovererTypes.WRITER, debug)
 
     def publish(self, msg_arr: typing.List[typing.Any]):
-        packed_data = struct.pack(self.struct_data_type_str, *msg_arr)
-        if len(packed_data) != self.data_size:
-            raise RuntimeError(
-                f"Published message array mismatching. Expected {self.data_size/_get_size(self.data_type)}, got {len(msg_arr)}"
-            )
-        self.sem.acquire()
-        try:
-            self.mmap[: len(packed_data)] = packed_data
-            if self._verbose:
-                # TODO Remember to remove
-                print(f"publishing: {msg_arr}")
-        except IndexError:
-            self._remove_shared_memory()
-            self._init_shared_memory()
-            print(
-                "WARNING: Previous use of the shared memory is incompatible. It's now cleaned"
-            )
-        self.sem.release()
-
+        # Timeout set to 0, so we just check if there's at least one subscriber
+        # without waiting
+        if self._discoverer.wait_to_proceed(timeout=0):
+            packed_data = struct.pack(self.struct_data_type_str, *msg_arr)
+            packed_timestamp = struct.pack("d", time.time())
+            if len(packed_data) != self.data_size:
+                raise RuntimeError(
+                    f"Published message array mismatching. Expected {self.data_size/_get_size(self.data_type)}, got {len(msg_arr)}"
+                )
+            with self.sem:
+                try:
+                    self.mmap[: len(packed_data)] = packed_data
+                    self.timestamp_mmap[: len(packed_timestamp)] = packed_timestamp
+                    self.logger.debug(f"publishing: {msg_arr}")
+                # This happens if the previous use of shared memory has a different size
+                except IndexError:
+                    self._remove_shared_memory()
+                    self._init_shared_memory()
+                    print(
+                        "WARNING: Previous use of the shared memory is incompatible. It's now cleaned"
+                    )
+            
 
 class SharedMemorySub(SharedMemoryPubSubBase):
     def __init__(
@@ -139,32 +143,40 @@ class SharedMemorySub(SharedMemoryPubSubBase):
         data_type: type,
         arr_size: int,
         read_frequency: int,
-        verbose=False,
+        debug=False,
     ):
-        super().__init__(topic, data_type, arr_size, verbose)
+        super().__init__(topic, data_type, arr_size, DiscovererTypes.READER, debug)
         self.rate = Rate(read_frequency)
         self._th = threading.Thread(target=self.__run, daemon=False)
         self._th.start()
 
-    # How does python's __ mangling work? Can outsiders call this?
     def __run(self):
         # make it properly take signals
+        last_msg_timestamp: float = 0
         while threading.main_thread().is_alive():
-            self.sem.acquire()
-            try:
-                unpacked_msg = struct.unpack(
-                    self.struct_data_type_str, self.mmap[: self.data_size]
-                )
-                if self._verbose:
-                    print(f"unpacked_msg: {unpacked_msg}")
-            except struct.error as e:
-                self._remove_shared_memory()
-                self._init_shared_memory()
-                print(
-                    "WARNING: Previous use of the shared memory is incompatible. It's now cleaned"
-                )
-            self.sem.release()
-            self.rate.sleep()
+            if self._discoverer.wait_to_proceed(timeout=1):
+                connection_start_timestamp = self._discoverer.get_current_connection_start_time_time()
+                with self.sem: 
+                    current_msg_timestamp = float(struct.unpack(
+                        "d", self.timestamp_mmap[: self.timestamp_size]
+                    )[0])
+                    if not current_msg_timestamp or current_msg_timestamp == last_msg_timestamp:
+                        continue
+                    self.logger.debug(f'current_msg_timestamp: {current_msg_timestamp}')
+                    if current_msg_timestamp > connection_start_timestamp:
+                        try:
+                            unpacked_msg = struct.unpack(
+                                self.struct_data_type_str, self.mmap[: self.data_size]
+                            )
+                            last_msg_timestamp = current_msg_timestamp
+                            self.logger.debug(f"unpacked_msg: {unpacked_msg}")
+                        except struct.error as e:
+                            self._remove_shared_memory()
+                            self._init_shared_memory()
+                            print(
+                                "WARNING: Previous use of the shared memory is incompatible. It's now cleaned"
+                            )
+                self.rate.sleep()
 
     def __cleanup(self):
         super().__cleanup()
@@ -180,7 +192,7 @@ if __name__ == "__main__":
     msg_ls = [1, 2, 3, 4, 5]
     if args.spawn_type == "pub":
         pub = SharedMemoryPub(
-            topic="test_topic", data_type=int, arr_size=len(msg_ls), verbose=True
+            topic="test_topic", data_type=int, arr_size=len(msg_ls), debug=True
         )
         for i in range(5):
             pub.publish([r + i for r in msg_ls])
@@ -191,6 +203,6 @@ if __name__ == "__main__":
             data_type=int,
             arr_size=len(msg_ls),
             read_frequency=10,
-            verbose=True,
+            debug=True,
         )
         spin()
