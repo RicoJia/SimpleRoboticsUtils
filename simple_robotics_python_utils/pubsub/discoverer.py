@@ -176,10 +176,6 @@ class Discoverer:
         return header, topic, type, socket_path
 
     def _cleanup(self):
-        if self.type == DiscovererTypes.WRITER:
-            pass
-        elif self.type == DiscovererTypes.READER:
-            pass
         self.th.join()
 
 
