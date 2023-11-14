@@ -58,6 +58,8 @@ class SharedMemoryPubSubBase:
         data_type: type,
         arr_size: int,
         discover_type: DiscovererTypes,
+        start_connection_callback: typing.Callable[[], None] = None,
+        no_connection_callback: typing.Callable[[], None] = None,
         debug=False,
     ):
         self.topic = topic
@@ -73,7 +75,11 @@ class SharedMemoryPubSubBase:
         self.struct_data_type_str = struct_pack_lookup[data_type] * arr_size
         atexit.register(self.__cleanup)
         self._discoverer = Discoverer(
-            topic=self.topic, discoverer_type=discover_type, debug=True
+            topic=self.topic, 
+            discoverer_type=discover_type, 
+            start_connection_callback = start_connection_callback, 
+            no_connection_callback = no_connection_callback, 
+            debug=debug
         )
         self._discoverer.start_discovery()
 
@@ -81,6 +87,7 @@ class SharedMemoryPubSubBase:
         def init_shm(name: str, size):
             try:
                 shm = posix_ipc.SharedMemory(name, flags=posix_ipc.O_CREX, size=size)
+                self.logger.debug(f"{self.__class__.__name__} found existing shm for {name}")
             except posix_ipc.ExistentialError:
                 shm = posix_ipc.SharedMemory(name)
             mmap_obj = mmap.mmap(shm.fd, shm.size)
@@ -124,8 +131,23 @@ class SharedMemoryPubSubBase:
 
 
 class SharedMemoryPub(SharedMemoryPubSubBase):
-    def __init__(self, topic: str, data_type: type, arr_size: int, debug=False):
-        super().__init__(topic, data_type, arr_size, DiscovererTypes.WRITER, debug)
+    def __init__(
+        self, 
+        topic: str, 
+        data_type: type, 
+        arr_size: int, 
+        start_connection_callback: typing.Callable[[], None] = None,
+        no_connection_callback: typing.Callable[[], None] = None,
+        debug=False
+        ):
+        super().__init__(
+            topic, 
+            data_type, 
+            arr_size, 
+            DiscovererTypes.WRITER,
+            start_connection_callback, 
+            no_connection_callback,
+            debug)
 
     def publish(self, msg_arr: typing.List[typing.Any]):
         # Timeout set to 0, so we just check if there's at least one subscriber
@@ -158,9 +180,20 @@ class SharedMemorySub(SharedMemoryPubSubBase):
         data_type: type,
         arr_size: int,
         read_frequency: int,
+        callback: typing.Callable[[tuple], None],
+        start_connection_callback: typing.Callable[[tuple], None] = None,
+        no_connection_callback: typing.Callable[[], None] = None,
         debug=False,
     ):
-        super().__init__(topic, data_type, arr_size, DiscovererTypes.READER, debug)
+        super().__init__(
+            topic, 
+            data_type, 
+            arr_size, 
+            DiscovererTypes.READER, 
+            start_connection_callback,
+            no_connection_callback, 
+            debug)
+        self.callback = callback
         self.rate = Rate(read_frequency)
         self._th = threading.Thread(target=self.__run, daemon=False)
         self._th.start()
@@ -169,7 +202,7 @@ class SharedMemorySub(SharedMemoryPubSubBase):
         # make it properly take signals
         last_msg_timestamp: float = 0
         while threading.main_thread().is_alive():
-            if self._discoverer.wait_to_proceed(timeout=1):
+            if self._discoverer.wait_to_proceed(timeout=3):
                 connection_start_timestamp = (
                     self._discoverer.get_current_connection_start_time_time()
                 )
@@ -180,23 +213,23 @@ class SharedMemorySub(SharedMemoryPubSubBase):
                         ]
                     )
                     if (
-                        not current_msg_timestamp
-                        or current_msg_timestamp == last_msg_timestamp
+                        current_msg_timestamp
+                        and current_msg_timestamp != last_msg_timestamp
                     ):
-                        continue
-                    if current_msg_timestamp > connection_start_timestamp:
-                        try:
-                            unpacked_msg = struct.unpack(
-                                self.struct_data_type_str, self.mmap[: self.data_size]
-                            )
-                            last_msg_timestamp = current_msg_timestamp
-                            self.logger.debug(f"unpacked_msg: {unpacked_msg}")
-                        except struct.error as e:
-                            self._remove_shared_memory()
-                            self._init_shared_memory()
-                            print(
-                                "WARNING: Previous use of the shared memory is incompatible. It's now cleaned"
-                            )
+                        if current_msg_timestamp > connection_start_timestamp:
+                            try:
+                                unpacked_msg = struct.unpack(
+                                    self.struct_data_type_str, self.mmap[: self.data_size]
+                                )
+                                last_msg_timestamp = current_msg_timestamp
+                                self.callback(unpacked_msg)
+                                self.logger.debug(f"unpacked_msg: {unpacked_msg}")
+                            except struct.error as e:
+                                self._remove_shared_memory()
+                                self._init_shared_memory()
+                                print(
+                                    "WARNING: Previous use of the shared memory is incompatible. It's now cleaned"
+                                )
                 self.rate.sleep()
 
     def __cleanup(self):
@@ -206,24 +239,40 @@ class SharedMemorySub(SharedMemoryPubSubBase):
 
 if __name__ == "__main__":
     import argparse
+    import rospy
+    from std_msgs.msg import Float64MultiArray
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("spawn_type", type=str, choices=["pub", "sub"])
+    parser.add_argument("spawn_type", type=str, choices=["pub", "sub", "ros_pub", "ros_sub"])
     args = parser.parse_args()
-    msg_ls = [1, 2, 3, 4, 5]
+    msg_ls = list(range(360))
     if args.spawn_type == "pub":
         pub = SharedMemoryPub(
-            topic="test_topic", data_type=int, arr_size=len(msg_ls), debug=True
+            topic="test_topic", data_type=int, arr_size=len(msg_ls), debug=False
         )
-        for i in range(5):
-            pub.publish([r + i for r in msg_ls])
-            time.sleep(0.5)
+        for i in range(2000):
+            pub.publish(msg_ls)
+            time.sleep(0.02)
     elif args.spawn_type == "sub":
         sub = SharedMemorySub(
             topic="test_topic",
             data_type=int,
             arr_size=len(msg_ls),
             read_frequency=50,
-            debug=True,
+            debug=False,
         )
         spin()
+    elif args.spawn_type == "ros_sub":
+        rospy.init_node("test_sub", anonymous=True)
+        sub = rospy.Subscriber("test_topic", Float64MultiArray, lambda msg: msg.data)
+        rospy.spin()
+    elif args.spawn_type == "ros_pub":
+        rospy.init_node("test_pub")
+        pub = rospy.Publisher("test_topic", Float64MultiArray, queue_size=0)
+        rate = rospy.Rate(50)
+        for i in range(1000):
+            msg = Float64MultiArray()
+            msg.data = msg_ls
+            pub.publish(msg)
+            rate.sleep()
+        
