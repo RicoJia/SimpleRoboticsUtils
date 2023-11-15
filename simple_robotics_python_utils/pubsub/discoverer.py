@@ -22,7 +22,7 @@ class DiscovererTypes(enum.Enum):
 
 DISCOVERER_UDP_PORT = 5007
 DISCOVERER_MULTICAST_GROUP_ADDR = "224.0.0.1"
-UDP_BROADCAST_TIMEOUT = 3
+UDP_BROADCAST_TIMEOUT = 1
 CONNECTION_EXPIRATION_TIMEOUT = UDP_BROADCAST_TIMEOUT * 5
 HELLO = "h"
 BYE = "b"
@@ -123,6 +123,8 @@ class Discoverer:
             DiscovererTypes.READER: DiscovererTypes.WRITER,
             DiscovererTypes.WRITER: DiscovererTypes.READER,
         }[self.type]
+        # Note: main thread is the thread where the python interpreter is launched,
+        # not necessarily where the object gets created
         while threading.main_thread().is_alive():
             try:
                 data, addr = udp_socket.recvfrom(1024)
@@ -134,29 +136,27 @@ class Discoverer:
                 self._prune_potential_gone_partners()
                 if header == HELLO and type == other_type.name and topic == self.topic:
                     # update will automatically add / update
-                    if not socket_path in self.partners:
-                        # This can make UDP socket sleep a bit longer
-                        self._create_and_send_msg(HELLO, self.socket_path, udp_socket)
-                        self.logger.debug(f"Added socket: {self.partners}")
-                    self._state_update(start=True, socket_path=socket_path)
+                    self._state_update(start=True, socket_path=socket_path, udp_socket=udp_socket)
                 if header == BYE and type == other_type.name and topic == self.topic:
                     # pop will delete the socket path in partners. If key doesn't exist, it won't yell
                     self._state_update(start=False, socket_path=socket_path)
-                    self.logger.debug(f"Removed socket: {self.partners}")
             except socket.timeout:
                 self._create_and_send_msg(HELLO, self.socket_path, udp_socket)
         self._create_and_send_msg(BYE, self.socket_path, udp_socket)
 
-    def _state_update(self, start: bool, socket_path: str):
+    def _state_update(self, start: bool, socket_path: str, udp_socket = None):
         if start:
             if not self.partners:
+                # This can make UDP socket sleep a bit longer
+                self._create_and_send_msg(HELLO, self.socket_path, udp_socket)
                 self._current_connection_start_time = time.time()
-                self._at_least_one_partner_event.set()
                 if self.start_connection_callback:
                     self.start_connection_callback()
+                self._at_least_one_partner_event.set()
             self.partners.update(
                 {socket_path: time.time() + CONNECTION_EXPIRATION_TIMEOUT}
             )
+            self.logger.debug(f"{self.type} Added a partner, now have parters: {len(self.partners)}")
         else:
             self.partners.pop(socket_path, None)
             if not self.partners:
@@ -164,6 +164,7 @@ class Discoverer:
                 if self.no_connection_callback:
                     self.no_connection_callback()
                 self._at_least_one_partner_event.clear()
+            self.logger.debug(f"{self.type} Removed a partner, now have parters: {len(self.partners)}")
 
     def _prune_potential_gone_partners(self):
         prune_list = [
@@ -175,7 +176,7 @@ class Discoverer:
             self.partners.pop(socket_path, None)
         if not self.partners:
             self._at_least_one_partner_event.clear()
-        self.logger.debug(f"Current partners: {self.partners}")
+        self.logger.debug(f"Current partners: {len(self.partners)}")
 
     def _create_and_send_msg(self, header: str, socket_path: str, sock):
         message = f"{header},{self.topic},{self.type.name},{socket_path}"
@@ -186,7 +187,8 @@ class Discoverer:
         return header, topic, type, socket_path
 
     def _cleanup(self):
-        self.th.join()
+        if self.th.is_alive():
+            self.th.join()
 
 
 if __name__ == "__main__":
