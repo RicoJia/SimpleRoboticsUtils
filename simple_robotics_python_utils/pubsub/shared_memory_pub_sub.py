@@ -150,6 +150,16 @@ class SharedMemoryPub(SharedMemoryPubSubBase):
             debug)
 
     def publish(self, msg_arr: typing.List[typing.Any]):
+        """Publish a message by writing to shared memory.
+        
+        If no subscriber is connected, this function terminates immediately
+
+        Args:
+            msg_arr (typing.List[typing.Any]): messsage of specified type in the constructor
+
+        Raises:
+            RuntimeError: if the message size does not match
+        """
         # Timeout set to 0, so we just check if there's at least one subscriber
         # without waiting
         if self._discoverer.wait_to_proceed(timeout=0):
@@ -168,8 +178,8 @@ class SharedMemoryPub(SharedMemoryPubSubBase):
                 except IndexError:
                     self._remove_shared_memory()
                     self._init_shared_memory()
-                    print(
-                        "WARNING: Previous use of the shared memory is incompatible. It's now cleaned"
+                    self.logger.warning(
+                        "Previous use of the shared memory is incompatible. It's now cleaned"
                     )
 
 

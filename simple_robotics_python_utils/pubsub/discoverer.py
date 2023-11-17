@@ -176,7 +176,7 @@ class Discoverer:
             self.partners.pop(socket_path, None)
         if not self.partners:
             self._at_least_one_partner_event.clear()
-        self.logger.debug(f"Current partners: {len(self.partners)}")
+        self.logger.debug(f"{self.type} - Current partners: {len(self.partners)}")
 
     def _create_and_send_msg(self, header: str, socket_path: str, sock):
         message = f"{header},{self.topic},{self.type.name},{socket_path}"

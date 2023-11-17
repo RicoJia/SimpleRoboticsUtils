@@ -9,6 +9,7 @@ import time
 # Then send a sigint to kill the subscribers
 TOPIC_NAME = "test_topic"
 class TestDiscoverer:
+    # the current implementation will kind of choke within a second
     def test_discoverer(self):
         reader_num = 7
         readers_processes = []
