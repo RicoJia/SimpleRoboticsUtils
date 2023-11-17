@@ -75,11 +75,11 @@ class SharedMemoryPubSubBase:
         self.struct_data_type_str = struct_pack_lookup[data_type] * arr_size
         atexit.register(self.__cleanup)
         self._discoverer = Discoverer(
-            topic=self.topic, 
-            discoverer_type=discover_type, 
-            start_connection_callback = start_connection_callback, 
-            no_connection_callback = no_connection_callback, 
-            debug=debug
+            topic=self.topic,
+            discoverer_type=discover_type,
+            start_connection_callback=start_connection_callback,
+            no_connection_callback=no_connection_callback,
+            debug=debug,
         )
         self._discoverer.start_discovery()
 
@@ -87,7 +87,9 @@ class SharedMemoryPubSubBase:
         def init_shm(name: str, size):
             try:
                 shm = posix_ipc.SharedMemory(name, flags=posix_ipc.O_CREX, size=size)
-                self.logger.debug(f"{self.__class__.__name__} found existing shm for {name}")
+                self.logger.debug(
+                    f"{self.__class__.__name__} found existing shm for {name}"
+                )
             except posix_ipc.ExistentialError:
                 shm = posix_ipc.SharedMemory(name)
             mmap_obj = mmap.mmap(shm.fd, shm.size)
@@ -132,26 +134,27 @@ class SharedMemoryPubSubBase:
 
 class SharedMemoryPub(SharedMemoryPubSubBase):
     def __init__(
-        self, 
-        topic: str, 
-        data_type: type, 
-        arr_size: int, 
+        self,
+        topic: str,
+        data_type: type,
+        arr_size: int,
         start_connection_callback: typing.Callable[[], None] = None,
         no_connection_callback: typing.Callable[[], None] = None,
-        debug=False
-        ):
+        debug=False,
+    ):
         super().__init__(
-            topic, 
-            data_type, 
-            arr_size, 
+            topic,
+            data_type,
+            arr_size,
             DiscovererTypes.WRITER,
-            start_connection_callback, 
+            start_connection_callback,
             no_connection_callback,
-            debug)
+            debug,
+        )
 
     def publish(self, msg_arr: typing.List[typing.Any]):
         """Publish a message by writing to shared memory.
-        
+
         If no subscriber is connected, this function terminates immediately
 
         Args:
@@ -196,13 +199,14 @@ class SharedMemorySub(SharedMemoryPubSubBase):
         debug=False,
     ):
         super().__init__(
-            topic, 
-            data_type, 
-            arr_size, 
-            DiscovererTypes.READER, 
+            topic,
+            data_type,
+            arr_size,
+            DiscovererTypes.READER,
             start_connection_callback,
-            no_connection_callback, 
-            debug)
+            no_connection_callback,
+            debug,
+        )
         self.callback = callback
         self.rate = Rate(read_frequency)
         self._th = threading.Thread(target=self.__run, daemon=False)
@@ -229,7 +233,8 @@ class SharedMemorySub(SharedMemoryPubSubBase):
                         if current_msg_timestamp > connection_start_timestamp:
                             try:
                                 unpacked_msg = struct.unpack(
-                                    self.struct_data_type_str, self.mmap[: self.data_size]
+                                    self.struct_data_type_str,
+                                    self.mmap[: self.data_size],
                                 )
                                 last_msg_timestamp = current_msg_timestamp
                                 self.callback(unpacked_msg)
@@ -253,7 +258,9 @@ if __name__ == "__main__":
     from std_msgs.msg import Float64MultiArray
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("spawn_type", type=str, choices=["pub", "sub", "ros_pub", "ros_sub"])
+    parser.add_argument(
+        "spawn_type", type=str, choices=["pub", "sub", "ros_pub", "ros_sub"]
+    )
     args = parser.parse_args()
     msg_ls = list(range(360))
     if args.spawn_type == "pub":
@@ -285,4 +292,3 @@ if __name__ == "__main__":
             msg.data = msg_ls
             pub.publish(msg)
             rate.sleep()
-        

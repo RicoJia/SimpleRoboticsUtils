@@ -136,7 +136,9 @@ class Discoverer:
                 self._prune_potential_gone_partners()
                 if header == HELLO and type == other_type.name and topic == self.topic:
                     # update will automatically add / update
-                    self._state_update(start=True, socket_path=socket_path, udp_socket=udp_socket)
+                    self._state_update(
+                        start=True, socket_path=socket_path, udp_socket=udp_socket
+                    )
                 if header == BYE and type == other_type.name and topic == self.topic:
                     # pop will delete the socket path in partners. If key doesn't exist, it won't yell
                     self._state_update(start=False, socket_path=socket_path)
@@ -144,7 +146,7 @@ class Discoverer:
                 self._create_and_send_msg(HELLO, self.socket_path, udp_socket)
         self._create_and_send_msg(BYE, self.socket_path, udp_socket)
 
-    def _state_update(self, start: bool, socket_path: str, udp_socket = None):
+    def _state_update(self, start: bool, socket_path: str, udp_socket=None):
         if start:
             if not self.partners:
                 # This can make UDP socket sleep a bit longer
@@ -156,7 +158,9 @@ class Discoverer:
             self.partners.update(
                 {socket_path: time.time() + CONNECTION_EXPIRATION_TIMEOUT}
             )
-            self.logger.debug(f"{self.type} Added a partner, now have parters: {len(self.partners)}")
+            self.logger.debug(
+                f"{self.type} Added a partner, now have parters: {len(self.partners)}"
+            )
         else:
             self.partners.pop(socket_path, None)
             if not self.partners:
@@ -164,7 +168,9 @@ class Discoverer:
                 if self.no_connection_callback:
                     self.no_connection_callback()
                 self._at_least_one_partner_event.clear()
-            self.logger.debug(f"{self.type} Removed a partner, now have parters: {len(self.partners)}")
+            self.logger.debug(
+                f"{self.type} Removed a partner, now have parters: {len(self.partners)}"
+            )
 
     def _prune_potential_gone_partners(self):
         prune_list = [
