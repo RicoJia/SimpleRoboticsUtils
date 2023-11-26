@@ -7,7 +7,7 @@ class Rate:
     1. There's no convenient way to adaptively sleep for a certain amount of time.
     """
 
-    def __init__(self, rate):
+    def __init__(self, rate: float):
         self.sleep_time = 1.0 / rate
         self.next_wakeup_time = time.perf_counter() + self.sleep_time
 
