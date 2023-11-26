@@ -10,6 +10,11 @@ Some notes are:-
     - UDP and TCP (hence HTTP, which builds on top of it) cannot listen to the same port at the same time
     - UDP multicast: a multicast packet can be sent to multiple listening processes. TCP does not have that feature
     - ROS1 uses 11311 as the default port.
+
+Quirks of the Pub-Sub Framework:
+- The lifttime of the discoverer, hence pubs and subs, are process time
+- Instantiation of the pub and the sub must be in the same process because of the background discoverer thread
+    - However, it can be shared within the same process
 """
 import atexit
 import ctypes
