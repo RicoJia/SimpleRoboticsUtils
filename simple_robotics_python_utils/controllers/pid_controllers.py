@@ -25,6 +25,12 @@ class BasePIDController:
         self.stop_taking_commands()
 
     ######################################### Wheel Vel Update Functions #########################################
+    def _reset_pid_params(self):
+        self.errors: Deque[np.ndarray] = deque(
+            [np.zeros(2) for _ in range(NUM_ERRORS)], maxlen=NUM_ERRORS
+        )
+        self.last_pwm: np.ndarray = np.zeros(2)
+
     def store_speed(self, speed: Tuple[float, float]) -> None:
         """Callback for hearing actual speeds
 
@@ -41,9 +47,7 @@ class BasePIDController:
         """Function that resets current speeds and errors and flag."""
         self.getting_speed_updates = False
         self.motor_speeds = np.array((0.0, 0.0))
-        self.errors: Deque[np.ndarray] = deque(
-            [np.zeros(2) for _ in range(NUM_ERRORS)], maxlen=NUM_ERRORS
-        )
+        self._reset_pid_params()
 
     ######################################### Commanded Wheel Vel Functions #########################################
     def store_commanded_speed(self, speed: Tuple[float, float]) -> None:
@@ -61,7 +65,6 @@ class BasePIDController:
     def stop_taking_commands(self):
         """Function that resets current speeds and pwm and flag."""
         self.desired_speeds = np.array((0.0, 0.0))
-        self.last_pwm: np.ndarray = np.zeros(2)
         self.getting_commanded_wheel_vel = False
 
     def get_pwms(self) -> Tuple[float, float]:
@@ -139,7 +142,11 @@ class IncrementalPIDController(BasePIDController):
 class FeedforwardIncrementalPIDController(IncrementalPIDController):
     LEFT_FEEDFOWARD_TERMS_FILE = "LEFT_FEEDFORWARD_TERMS.csv"
     RIGHT_FEEDFOWARD_TERMS_FILE = "RIGHT_FEEDFORWARD_TERMS.csv"
-    __slots__ = ("need_to_record_feedforward_terms", "feedforward_terms")
+    __slots__ = (
+        "need_to_record_feedforward_terms",
+        "feedforward_terms",
+        "last_feedforward_pwm",
+    )
 
     """
     1. Recording is in the hands of the tuner.
@@ -193,6 +200,20 @@ class FeedforwardIncrementalPIDController(IncrementalPIDController):
             self.right_feedforward_speeds,
         ) = _load_single_feedforward_terms(right_feedforward_terms_file)
 
+    ####################################################################
+    # Reset more params
+    ####################################################################
+    def _reset_for_new_feedforward_terms(self):
+        self.last_feedforward_pwm = 0
+
+    def stop_taking_commands(self):
+        super().stop_taking_commands()
+        self._reset_for_new_feedforward_terms()
+
+    ####################################################################
+    # feedforward
+    ####################################################################
+
     def _find_closest_feedforward_pwms(self) -> np.ndarray:
         # Use binary search for self.desired_speeds
         # TODO: one potential improvement is to use interpolation, or return the NEAREST smaller, or larger term
@@ -234,11 +255,18 @@ class FeedforwardIncrementalPIDController(IncrementalPIDController):
         """
         if self.getting_speed_updates and self.getting_commanded_wheel_vel:
             # e[k] = desired_speeds[k] - motor_speeds[k]
-            e = np.asarray(self.desired_speeds) - self.motor_speeds
+            feedforward_term = self._find_closest_feedforward_pwms()
+            if np.allclose(feedforward_term, self.last_feedforward_pwm):
+                e = np.zeros(2)
+                self._reset_for_new_feedforward_terms()
+                self._reset_pid_params()
+            else:
+                e = np.asarray(self.desired_speeds) - self.motor_speeds
+
             incremental_pid_pwm = self.calc_pid(
                 e, self.errors, self.kp, self.ki, self.kd, self.last_pwm
             )
-            pwm_output = incremental_pid_pwm + self._find_closest_feedforward_pwms()
+            pwm_output = incremental_pid_pwm + feedforward_term
             pwm_output = np.clip(pwm_output, MIN_PWM, MAX_PWM)
             self.errors.appendleft(e)
             # IMPORTANT: self.last_pwm is actually incremental_pid_pwm ONLY!
@@ -248,4 +276,28 @@ class FeedforwardIncrementalPIDController(IncrementalPIDController):
         else:
             return (0.0, 0.0)
 
-        
+
+"""
+If we want to reset the PID controller. When to reset: a new feedforward term is selected.
+- Why? The current setpoint might introduce huge dips /overshoot at the beginning, since the are determined by previous errors
+- Need:
+    - self.last_feedforward
+    - upon new feedforward
+        - e = 0 (this only buys you a few milliseconds)
+        - reset self.last_error, self.last_pwm, 
+
+
+        # u[k] = kp * (e[k] - e[k-1]) + ki * e[k] + kd * (e[k] - 2 * e[k-1] + e[k-2])
+        u = (
+            kp * (e - past_errors[0])
+            + ki * e
+            + kd * (e - 2 * past_errors[0] + past_errors[1])
+        )
+        # print(f'p: {kp * (e - past_errors[0])}, i: {ki * e}, d: {kd * (e - 2 * past_errors[0] + past_errors[1])}, last_pwm: {last_pwm}')
+        current_pwm = u + last_pwm
+        # (-1, 1) means Bi-directional
+        current_pwm = np.clip(current_pwm, MIN_PWM, MAX_PWM)
+        return current_pwm
+
+
+"""
