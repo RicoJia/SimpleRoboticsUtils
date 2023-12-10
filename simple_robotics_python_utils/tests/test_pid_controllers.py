@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+from simple_robotics_python_utils.common.io import try_remove_file
 from simple_robotics_python_utils.controllers.pid_controllers import (
     BasePIDController,
     IncrementalPIDController,
@@ -7,6 +7,7 @@ from simple_robotics_python_utils.controllers.pid_controllers import (
     PIDParams,
 )
 import numpy as np
+import csv
 
 
 class TestBasePIDController:
@@ -64,8 +65,50 @@ class TestBasePIDController:
         controller.start_taking_commands()
         _single_direction_increase_and_overshoot_test(positive_direction)
 
-    def test_controllers(self):
+    def test_incremental_pid_controller(self):
         controller = IncrementalPIDController(*self._get_params())
         self._test_pid_controller(controller, positive_direction=True)
         controller = IncrementalPIDController(*self._get_params())
         self._test_pid_controller(controller, positive_direction=False)
+
+    def _create_feedforward_file(self) -> str:
+        FILE_PATH = "test_feedforward_terms_file.csv"
+        test_pwm_speeds = [
+            (-1.0, -1.0),
+            (-0.5, -0.5),
+            (0.0, 0.0),
+            (0.5, 0.5),
+            (1.0, 1.0),
+        ]
+        with open(FILE_PATH, "w") as f:
+            writer = csv.writer(f)
+            writer.writerow(["pwm", "speed"])
+            for pwm, speed in test_pwm_speeds:
+                writer.writerow([pwm, speed])
+        return FILE_PATH
+
+    def test_feedforward_incremental_pid_controller(self):
+        test_feedforward_terms_file = self._create_feedforward_file()
+        controller = FeedforwardIncrementalPIDController(
+            *self._get_params(),
+            test_feedforward_terms_file,
+            test_feedforward_terms_file,
+        )
+        test_feedforward_search = [
+            # speed, expected closest speed
+            (-2, -1),
+            (-1, -1),
+            (-0.7, -0.5),
+            (0.3, 0.0),
+            (0.5, 0.0),
+            (0.7, 0.5),
+            (1, 0.5),
+        ]
+        for speed, expected_speed in test_feedforward_search:
+            controller.store_commanded_speed((speed, speed))
+            closest_smaller_speed = controller._find_closest_feedforward_pwms()
+            assert np.allclose(expected_speed, closest_smaller_speed)
+        # self._test_pid_controller(controller, positive_direction=True)
+        # controller = FeedforwardIncrementalPIDController(*self._get_params())
+        # self._test_pid_controller(controller, positive_direction=False)
+        try_remove_file(test_feedforward_terms_file)

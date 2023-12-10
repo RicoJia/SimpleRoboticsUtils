@@ -2,8 +2,10 @@
 
 from collections import deque, namedtuple
 import numpy as np
-from typing import Tuple, Deque, Callable
+from typing import Tuple, Deque, Callable, List
 import os
+import csv
+import bisect
 
 PIDParams = namedtuple("PIDParams", ["kp", "ki", "kd"])
 
@@ -133,7 +135,7 @@ class IncrementalPIDController(BasePIDController):
         return current_pwm
 
 
-class FeedforwardIncrementalPIDController(BasePIDController):
+class FeedforwardIncrementalPIDController(IncrementalPIDController):
     LEFT_FEEDFOWARD_TERMS_FILE = "LEFT_FEEDFORWARD_TERMS.csv"
     RIGHT_FEEDFOWARD_TERMS_FILE = "RIGHT_FEEDFORWARD_TERMS.csv"
     __slots__ = ("need_to_record_feedforward_terms", "feedforward_terms")
@@ -150,32 +152,89 @@ class FeedforwardIncrementalPIDController(BasePIDController):
         self,
         left_params: PIDParams,
         right_params: PIDParams,
-        need_to_record_feedforward_terms: bool = False,
-        record_func: Callable[[], None] = None,
+        left_feedforward_terms_file: str,
+        right_feedforward_terms_file: str,
     ):
         super().__init__(left_params, right_params)
-        need_to_record_feedforward_terms = need_to_record_feedforward_terms
-        if not need_to_record_feedforward_terms and not os.path.exists(
-            FeedforwardIncrementalPIDController.FEEDFOWARD_TERMS_FILE
-        ):
-            need_to_record_feedforward_terms = (
-                input("Would you like to record feedforward terms? [y/n]\n") == "y"
+
+        self._load_feedforward_terms(
+            left_feedforward_terms_file, right_feedforward_terms_file
+        )
+
+    def _load_feedforward_terms(
+        self, left_feedforward_terms_file, right_feedforward_terms_file
+    ):
+        # Build
+        def _load_single_feedforward_terms(
+            feedforward_terms_file: str,
+        ) -> Tuple[List[float], List[float]]:
+            with open(feedforward_terms_file, "r") as f:
+                reader = csv.reader(f)
+                feedforward_terms = []
+                for row in reader:
+                    try:
+                        feedforward_terms.append((float(row[0]), float(row[1])))
+                    except ValueError:
+                        # will get this at header
+                        pass
+            # Sort the feedforward terms
+            sorted(feedforward_terms, key=lambda x: x[0])
+            feedforward_pwms = [x[0] for x in feedforward_terms]
+            feedforward_speeds = [x[1] for x in feedforward_terms]
+            return feedforward_pwms, feedforward_speeds
+
+        (
+            self.left_feedforward_pwms,
+            self.left_feedforward_speeds,
+        ) = _load_single_feedforward_terms(left_feedforward_terms_file)
+        (
+            self.right_feedforward_pwms,
+            self.right_feedforward_speeds,
+        ) = _load_single_feedforward_terms(right_feedforward_terms_file)
+
+    def _find_closest_feedforward_pwms(self) -> np.ndarray:
+        # Use binary search for self.desired_speeds
+        # TODO: one potential improvement is to use interpolation, or return the NEAREST smaller, or larger term
+        def _binary_search_for_index(
+            feedforward_pwms: List[Tuple[float, float]], desired_speed: float
+        ) -> int:
+            if desired_speed < 0:
+                next_smaller_num_offset = 0
+            else:
+                next_smaller_num_offset = -1
+            index_closest_smaller = (
+                bisect.bisect_left(feedforward_pwms, self.desired_speeds[0])
+                + next_smaller_num_offset
             )
+            index_closest_smaller = max(0, index_closest_smaller)
+            index_closest_smaller = min(index_closest_smaller, len(feedforward_pwms))
+            return index_closest_smaller
 
-        if need_to_record_feedforward_terms:
-            if record_func is None:
-                raise RuntimeError(
-                    "Please provide a function to record feedforward terms"
-                )
-            self._record_feedforward_terms(record_func)
+        return np.array(
+            [
+                self.left_feedforward_speeds[
+                    _binary_search_for_index(
+                        self.left_feedforward_pwms, self.desired_speeds[0]
+                    )
+                ],
+                self.right_feedforward_speeds[
+                    _binary_search_for_index(
+                        self.right_feedforward_pwms, self.desired_speeds[1]
+                    )
+                ],
+            ]
+        )
 
-        self._load_feedforward_terms()
-
-    def _load_feedforward_terms(self):
-        pass
-
-    def _record_feedforward_terms(self, record_func):
-        # This need to subscribe to an external speed topics
-        # 1. for each pwm value, pass the pwm into the record function, then get a list of
-        # outputs out
-        pass
+    def calc_pid(
+        self,
+        e: np.ndarray,
+        past_errors: Deque[np.ndarray],
+        kp: np.ndarray,
+        ki: np.ndarray,
+        kd: np.ndarray,
+        last_pwm: np.ndarray,
+    ) -> np.ndarray:
+        return (
+            super().calc_pid(e, past_errors, kp, ki, kd, last_pwm)
+            + self._find_closest_feedforward_pwms()
+        )
