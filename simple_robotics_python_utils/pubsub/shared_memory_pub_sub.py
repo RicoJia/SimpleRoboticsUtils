@@ -79,11 +79,15 @@ class SharedMemoryPubSubBase:
         struct_pack_lookup = {float: "d", bool: "?", int: "i"}
         self.struct_data_type_str = struct_pack_lookup[data_type] * arr_size
         atexit.register(self.__cleanup)
+        def no_connection_callback_with_cleanup(*args, **kwargs):
+            no_connection_callback(*args, **kwargs)
+            self._remove_shared_memory()
+
         self._discoverer = Discoverer(
             topic=self.topic,
             discoverer_type=discover_type,
             start_connection_callback=start_connection_callback,
-            no_connection_callback=no_connection_callback,
+            no_connection_callback=no_connection_callback_with_cleanup,
             debug=debug,
         )
         self._discoverer.start_discovery()
