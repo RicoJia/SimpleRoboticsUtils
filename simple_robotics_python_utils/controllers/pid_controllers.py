@@ -141,6 +141,11 @@ class IncrementalPIDController(BasePIDController):
 
 
 class RegularDiscretePIDController(BasePIDController):
+    def __init__(self, left_params: PIDParams, right_params: PIDParams):
+        global NUM_ERRORS
+        NUM_ERRORS = 5
+        super().__init__(left_params, right_params)
+
     def calc_pid(
         self,
         e: np.ndarray,
@@ -166,13 +171,13 @@ class RegularDiscretePIDController(BasePIDController):
         # u[k] = kp * (e[k] - e[k-1]) + ki * e[k] + kd * (e[k] - 2 * e[k-1] + e[k-2])
         u = (
             kp * e
-            + ki * (e + past_errors[0] + past_errors[1])
+            + ki * (sum(self.errors)) / len(self.errors)
             + kd * (e - past_errors[0])
         )
-        # TODO
-        print(
-            f"p: {kp * e}, i: {ki * (e + past_errors[0] + past_errors[1])}, d: {kd * (e  - past_errors[0])}"
-        )
+        # # TODO
+        # print(
+        #     f"p: {kp * e}, i: {ki * (e + past_errors[0] + past_errors[1])}, d: {kd * (e  - past_errors[0])}"
+        # )
         current_pwm = u
         # (-1, 1) means Bi-directional
         current_pwm = np.clip(current_pwm, MIN_PWM, MAX_PWM)
