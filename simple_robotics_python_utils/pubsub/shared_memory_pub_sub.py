@@ -79,16 +79,12 @@ class SharedMemoryPubSubBase:
         struct_pack_lookup = {float: "d", bool: "?", int: "i"}
         self.struct_data_type_str = struct_pack_lookup[data_type] * arr_size
         atexit.register(self.__cleanup)
-        def no_connection_callback_with_cleanup(*args, **kwargs):
-            if no_connection_callback is not None:
-                no_connection_callback(*args, **kwargs)
-            self._remove_shared_memory()
 
         self._discoverer = Discoverer(
             topic=self.topic,
             discoverer_type=discover_type,
             start_connection_callback=start_connection_callback,
-            no_connection_callback=no_connection_callback_with_cleanup,
+            no_connection_callback=no_connection_callback,
             debug=debug,
         )
         self._discoverer.start_discovery()
@@ -118,6 +114,7 @@ class SharedMemoryPubSubBase:
             self.sem = posix_ipc.Semaphore(
                 self.topic, flags=posix_ipc.O_CREX, initial_value=1
             )
+        self.logger.debug(f"Initiated shared memory")
 
     def _remove_shared_memory(self):
         """
@@ -133,6 +130,15 @@ class SharedMemoryPubSubBase:
 
         for entity in (self.shm, self.timestamp_shm, self.sem):
             unlink_shm_or_semaphore(self.shm)
+        self.logger.debug(f"Removed shared memory")
+
+    def reset_shared_memory():
+        """
+        THIS FUNCTION IS VERY DANGEROUS: IT CAN ONLY BE USED WHEN YOU ARE THE ONLY SUBSCRIBER
+        USE IT WITH GREAT CAUTION
+        """
+        self._remove_shared_memory()
+        self._init_shared_memory()
 
     def __cleanup(self):
         self.logger.debug(
@@ -189,8 +195,7 @@ class SharedMemoryPub(SharedMemoryPubSubBase):
                     self.logger.debug(f"publishing: {msg_arr}")
                 # This happens if the previous use of shared memory has a different size
                 except IndexError:
-                    self._remove_shared_memory()
-                    self._init_shared_memory()
+                    self.reset_shared_memory()
                     self.logger.warning(
                         "Previous use of the shared memory is incompatible. It's now cleaned"
                     )
@@ -250,8 +255,7 @@ class SharedMemorySub(SharedMemoryPubSubBase):
                                 self.callback(unpacked_msg)
                                 self.logger.debug(f"unpacked_msg: {unpacked_msg}")
                             except struct.error as e:
-                                self._remove_shared_memory()
-                                self._init_shared_memory()
+                                self.reset_shared_memory()
                                 print(
                                     "WARNING: Previous use of the shared memory is incompatible. It's now cleaned"
                                 )
