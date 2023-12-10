@@ -9,6 +9,7 @@ from simple_robotics_python_utils.common.io import try_remove_file
 from simple_robotics_python_utils.controllers.pid_controllers import (
     BasePIDController,
     IncrementalPIDController,
+    RegularDiscretePIDController,
     FeedforwardIncrementalPIDController,
     PIDParams,
 )
@@ -17,11 +18,11 @@ import csv
 
 
 class TestBasePIDController:
-    def _get_params(self):
-        return PIDParams(0.1, 0.4, 0.1), PIDParams(0.1, 0.4, 0.1)
+    def _get_params(self, kp, ki, kd):
+        return PIDParams(kp, ki, kd), PIDParams(kp, ki, kd)
 
     def test_controller_base_class(self):
-        controller = BasePIDController(*self._get_params())
+        controller = BasePIDController(*self._get_params(0.1, 0.4, 0.1))
         controller.store_speed((0.1, 0.1))
         assert np.allclose(controller.get_actual_speeds(), np.array((0.1, 0.1)))
         try:
@@ -83,9 +84,15 @@ class TestBasePIDController:
         _single_direction_increase_and_overshoot_test(positive_direction)
 
     def test_incremental_pid_controller(self):
-        controller = IncrementalPIDController(*self._get_params())
+        controller = IncrementalPIDController(*self._get_params(0.1, 0.4, 0.1))
         self._test_pid_controller(controller, positive_direction=True)
-        controller = IncrementalPIDController(*self._get_params())
+        controller = IncrementalPIDController(*self._get_params(0.1, 0.4, 0.1))
+        self._test_pid_controller(controller, positive_direction=False)
+
+    def test_regular_pid_controller(self):
+        controller = RegularDiscretePIDController(*self._get_params(0.5, 0.4, 0.5))
+        self._test_pid_controller(controller, positive_direction=True)
+        controller = RegularDiscretePIDController(*self._get_params(0.5, 0.4, 0.5))
         self._test_pid_controller(controller, positive_direction=False)
 
     def _create_feedforward_file(self) -> str:
@@ -107,7 +114,7 @@ class TestBasePIDController:
     def test_feedforward_incremental_pid_controller(self):
         test_feedforward_terms_file = self._create_feedforward_file()
         controller = FeedforwardIncrementalPIDController(
-            *self._get_params(),
+            *self._get_params(0.1, 0.4, 0.1),
             test_feedforward_terms_file,
             test_feedforward_terms_file,
         )
@@ -127,6 +134,6 @@ class TestBasePIDController:
             closest_smaller_speed = controller._find_closest_feedforward_pwms()
             assert np.allclose(expected_speed, closest_smaller_speed)
         self._test_pid_controller(controller, positive_direction=True)
-        # controller = FeedforwardIncrementalPIDController(*self._get_params())
+        # controller = FeedforwardIncrementalPIDController(*self._get_params(0.1, 0.4, 0.1))
         # self._test_pid_controller(controller, positive_direction=False)
         try_remove_file(test_feedforward_terms_file)

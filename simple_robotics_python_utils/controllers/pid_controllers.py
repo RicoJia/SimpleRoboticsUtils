@@ -132,8 +132,48 @@ class IncrementalPIDController(BasePIDController):
             + ki * e
             + kd * (e - 2 * past_errors[0] + past_errors[1])
         )
+        # TODO
         # print(f'p: {kp * (e - past_errors[0])}, i: {ki * e}, d: {kd * (e - 2 * past_errors[0] + past_errors[1])}, last_pwm: {last_pwm}')
         current_pwm = u + last_pwm
+        # (-1, 1) means Bi-directional
+        current_pwm = np.clip(current_pwm, MIN_PWM, MAX_PWM)
+        return current_pwm
+
+
+class RegularDiscretePIDController(BasePIDController):
+    def calc_pid(
+        self,
+        e: np.ndarray,
+        past_errors: Deque[np.ndarray],
+        kp: np.ndarray,
+        ki: np.ndarray,
+        kd: np.ndarray,
+        last_pwm: np.ndarray,
+    ) -> np.ndarray:
+        """Util function to calculate the current pwm value.
+
+        Args:
+            e (np.ndarray): set_point - current_value
+            past_errors (np.ndarray): e[k-1], e[k-2]
+            kp (np.ndarray): 2-array for both motors
+            ki (np.ndarray): 2-array for both motors
+            kd (np.ndarray): 2-array for both motors
+            last_pwm (np.ndarray): last pwm signal
+
+        Returns:
+            np.ndarray: current pwm
+        """
+        # u[k] = kp * (e[k] - e[k-1]) + ki * e[k] + kd * (e[k] - 2 * e[k-1] + e[k-2])
+        u = (
+            kp * e
+            + ki * (e + past_errors[0] + past_errors[1])
+            + kd * (e - past_errors[0])
+        )
+        # TODO
+        print(
+            f"p: {kp * e}, i: {ki * (e + past_errors[0] + past_errors[1])}, d: {kd * (e  - past_errors[0])}"
+        )
+        current_pwm = u
         # (-1, 1) means Bi-directional
         current_pwm = np.clip(current_pwm, MIN_PWM, MAX_PWM)
         return current_pwm
@@ -149,7 +189,11 @@ class FeedforwardIncrementalPIDController(IncrementalPIDController):
     )
 
     """
-    1. Recording is in the hands of the tuner.
+    1. YOU SHOULD DEFINITELY TRY INCREMENTAL PID FIRST, chances are, the feedforward control is worse.
+        - Performance of the feedforward controller greatly depends on how far the feedforward terms are
+        - unfortunately, the motors speeds are dependent on battery voltage. So the feedforward terms can divert by quite a bit
+        - If the model varies quite a bit from the feedforward terms, DO NOT USE THIS
+    2. Recording is in the hands of the tuner.
         - So the tuner provides the full feedforward file path
             - But this class provides the file name, for reference
         - This class only provides a record tool function. That should be used as a callback for motor outputs
@@ -248,7 +292,16 @@ class FeedforwardIncrementalPIDController(IncrementalPIDController):
         )
 
     def get_pwms(self) -> Tuple[float, float]:
-        """High level function to calculate current PWM.
+        """
+        High level function to calculate current PWM.
+        When to reset: a new feedforward term is selected.
+        Why reset the PID controller:
+        - The current setpoint might introduce huge dips /overshoot at the beginning, since the are determined by previous errors
+        - Need:
+            - self.last_feedforward
+            - upon new feedforward
+                - e = 0 (this only buys you a few milliseconds)
+                - reset self.last_error, self.last_pwm,
 
         Returns:
             Tuple[float, float]: PWM for both motors
@@ -275,29 +328,3 @@ class FeedforwardIncrementalPIDController(IncrementalPIDController):
             return tuple(pwm_output)
         else:
             return (0.0, 0.0)
-
-
-"""
-If we want to reset the PID controller. When to reset: a new feedforward term is selected.
-- Why? The current setpoint might introduce huge dips /overshoot at the beginning, since the are determined by previous errors
-- Need:
-    - self.last_feedforward
-    - upon new feedforward
-        - e = 0 (this only buys you a few milliseconds)
-        - reset self.last_error, self.last_pwm, 
-
-
-        # u[k] = kp * (e[k] - e[k-1]) + ki * e[k] + kd * (e[k] - 2 * e[k-1] + e[k-2])
-        u = (
-            kp * (e - past_errors[0])
-            + ki * e
-            + kd * (e - 2 * past_errors[0] + past_errors[1])
-        )
-        # print(f'p: {kp * (e - past_errors[0])}, i: {ki * e}, d: {kd * (e - 2 * past_errors[0] + past_errors[1])}, last_pwm: {last_pwm}')
-        current_pwm = u + last_pwm
-        # (-1, 1) means Bi-directional
-        current_pwm = np.clip(current_pwm, MIN_PWM, MAX_PWM)
-        return current_pwm
-
-
-"""
