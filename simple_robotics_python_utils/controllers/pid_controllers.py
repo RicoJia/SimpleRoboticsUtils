@@ -129,6 +129,7 @@ class IncrementalPIDController(BasePIDController):
             + ki * e
             + kd * (e - 2 * past_errors[0] + past_errors[1])
         )
+        # print(f'p: {kp * (e - past_errors[0])}, i: {ki * e}, d: {kd * (e - 2 * past_errors[0] + past_errors[1])}, last_pwm: {last_pwm}')
         current_pwm = u + last_pwm
         # (-1, 1) means Bi-directional
         current_pwm = np.clip(current_pwm, MIN_PWM, MAX_PWM)
@@ -225,16 +226,26 @@ class FeedforwardIncrementalPIDController(IncrementalPIDController):
             ]
         )
 
-    def calc_pid(
-        self,
-        e: np.ndarray,
-        past_errors: Deque[np.ndarray],
-        kp: np.ndarray,
-        ki: np.ndarray,
-        kd: np.ndarray,
-        last_pwm: np.ndarray,
-    ) -> np.ndarray:
-        return (
-            super().calc_pid(e, past_errors, kp, ki, kd, last_pwm)
-            + self._find_closest_feedforward_pwms()
-        )
+    def get_pwms(self) -> Tuple[float, float]:
+        """High level function to calculate current PWM.
+
+        Returns:
+            Tuple[float, float]: PWM for both motors
+        """
+        if self.getting_speed_updates and self.getting_commanded_wheel_vel:
+            # e[k] = desired_speeds[k] - motor_speeds[k]
+            e = np.asarray(self.desired_speeds) - self.motor_speeds
+            incremental_pid_pwm = self.calc_pid(
+                e, self.errors, self.kp, self.ki, self.kd, self.last_pwm
+            )
+            pwm_output = incremental_pid_pwm + self._find_closest_feedforward_pwms()
+            pwm_output = np.clip(pwm_output, MIN_PWM, MAX_PWM)
+            self.errors.appendleft(e)
+            # IMPORTANT: self.last_pwm is actually incremental_pid_pwm ONLY!
+            self.last_pwm = incremental_pid_pwm
+            # print(f'pure incremental term: {incremental_pid_pwm}, feedforward term: {self._find_closest_feedforward_pwms()}')
+            return tuple(pwm_output)
+        else:
+            return (0.0, 0.0)
+
+        
