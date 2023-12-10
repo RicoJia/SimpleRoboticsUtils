@@ -80,7 +80,8 @@ class SharedMemoryPubSubBase:
         self.struct_data_type_str = struct_pack_lookup[data_type] * arr_size
         atexit.register(self.__cleanup)
         def no_connection_callback_with_cleanup(*args, **kwargs):
-            no_connection_callback(*args, **kwargs)
+            if no_connection_callback is not None:
+                no_connection_callback(*args, **kwargs)
             self._remove_shared_memory()
 
         self._discoverer = Discoverer(
