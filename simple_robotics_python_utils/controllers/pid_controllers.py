@@ -141,6 +141,12 @@ class IncrementalPIDController(BasePIDController):
 
 
 class RegularDiscretePIDController(BasePIDController):
+    """Notes
+    Experiment observations:
+        - It's quite smooth, but steady state error is hard to kill.
+        - You may want to jack up Kp, but that could lead to some nasty instabilities
+    """
+
     def __init__(self, left_params: PIDParams, right_params: PIDParams):
         global NUM_ERRORS
         NUM_ERRORS = 5
