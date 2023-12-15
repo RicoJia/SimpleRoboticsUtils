@@ -79,6 +79,7 @@ class SharedMemoryPubSubBase:
         struct_pack_lookup = {float: "d", bool: "?", int: "i"}
         self.struct_data_type_str = struct_pack_lookup[data_type] * arr_size
         atexit.register(self.__cleanup)
+
         self._discoverer = Discoverer(
             topic=self.topic,
             discoverer_type=discover_type,
@@ -113,6 +114,7 @@ class SharedMemoryPubSubBase:
             self.sem = posix_ipc.Semaphore(
                 self.topic, flags=posix_ipc.O_CREX, initial_value=1
             )
+        self.logger.debug(f"Initiated shared memory")
 
     def _remove_shared_memory(self):
         """
@@ -128,6 +130,15 @@ class SharedMemoryPubSubBase:
 
         for entity in (self.shm, self.timestamp_shm, self.sem):
             unlink_shm_or_semaphore(self.shm)
+        self.logger.debug(f"Removed shared memory")
+
+    def _reset_shared_memory():
+        """
+        THIS FUNCTION IS VERY DANGEROUS: IT CAN ONLY BE USED WHEN YOU ARE THE ONLY SUBSCRIBER
+        USE IT WITH GREAT CAUTION
+        """
+        self._remove_shared_memory()
+        self._init_shared_memory()
 
     def __cleanup(self):
         self.logger.debug(
@@ -184,8 +195,7 @@ class SharedMemoryPub(SharedMemoryPubSubBase):
                     self.logger.debug(f"publishing: {msg_arr}")
                 # This happens if the previous use of shared memory has a different size
                 except IndexError:
-                    self._remove_shared_memory()
-                    self._init_shared_memory()
+                    self._reset_shared_memory()
                     self.logger.warning(
                         "Previous use of the shared memory is incompatible. It's now cleaned"
                     )
@@ -245,8 +255,7 @@ class SharedMemorySub(SharedMemoryPubSubBase):
                                 self.callback(unpacked_msg)
                                 self.logger.debug(f"unpacked_msg: {unpacked_msg}")
                             except struct.error as e:
-                                self._remove_shared_memory()
-                                self._init_shared_memory()
+                                self._reset_shared_memory()
                                 print(
                                     "WARNING: Previous use of the shared memory is incompatible. It's now cleaned"
                                 )
