@@ -90,9 +90,9 @@ class TestBasePIDController:
         self._test_pid_controller(controller, positive_direction=False)
 
     def test_regular_pid_controller(self):
-        controller = RegularDiscretePIDController(*self._get_params(0.5, 0.4, 0.5))
+        controller = RegularDiscretePIDController(*self._get_params(0.1, 0.4, 0.1))
         self._test_pid_controller(controller, positive_direction=True)
-        controller = RegularDiscretePIDController(*self._get_params(0.5, 0.4, 0.5))
+        controller = RegularDiscretePIDController(*self._get_params(0.1, 0.4, 0.1))
         self._test_pid_controller(controller, positive_direction=False)
 
     def _create_feedforward_file(self) -> str:
