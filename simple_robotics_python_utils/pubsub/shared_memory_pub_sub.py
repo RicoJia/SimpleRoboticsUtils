@@ -132,7 +132,7 @@ class SharedMemoryPubSubBase:
             unlink_shm_or_semaphore(self.shm)
         self.logger.debug(f"Removed shared memory")
 
-    def reset_shared_memory():
+    def _reset_shared_memory():
         """
         THIS FUNCTION IS VERY DANGEROUS: IT CAN ONLY BE USED WHEN YOU ARE THE ONLY SUBSCRIBER
         USE IT WITH GREAT CAUTION
@@ -195,7 +195,7 @@ class SharedMemoryPub(SharedMemoryPubSubBase):
                     self.logger.debug(f"publishing: {msg_arr}")
                 # This happens if the previous use of shared memory has a different size
                 except IndexError:
-                    self.reset_shared_memory()
+                    self._reset_shared_memory()
                     self.logger.warning(
                         "Previous use of the shared memory is incompatible. It's now cleaned"
                     )
@@ -255,7 +255,7 @@ class SharedMemorySub(SharedMemoryPubSubBase):
                                 self.callback(unpacked_msg)
                                 self.logger.debug(f"unpacked_msg: {unpacked_msg}")
                             except struct.error as e:
-                                self.reset_shared_memory()
+                                self._reset_shared_memory()
                                 print(
                                     "WARNING: Previous use of the shared memory is incompatible. It's now cleaned"
                                 )
