@@ -209,6 +209,8 @@ class FeedforwardIncrementalPIDController(IncrementalPIDController):
             - But this class provides the file name, for reference
         - This class only provides a record tool function. That should be used as a callback for motor outputs
             - The tool function writes (pwm, actual speed) to the file
+    3. Feedforward PID Design Notes
+        - If your last pwm already containts the feedforward term, you are essentially accumulating feedforward term. So, do not include feedforward as part of your PID output
     """
 
     def __init__(
