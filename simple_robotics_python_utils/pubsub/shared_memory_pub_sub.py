@@ -29,6 +29,9 @@ from simple_robotics_python_utils.pubsub.pub_sub_utils import spin, Rate
 from simple_robotics_python_utils.common.logger import get_logger
 from simple_robotics_python_utils.pubsub.discoverer import Discoverer, DiscovererTypes
 
+import rospy
+from std_msgs.msg import Float32MultiArray
+
 ###############################################
 # Util Functions
 ###############################################
@@ -158,47 +161,64 @@ class SharedMemoryPub(SharedMemoryPubSubBase):
         no_connection_callback: typing.Callable[[], None] = None,
         debug=False,
     ):
-        super().__init__(
-            topic,
-            data_type,
-            arr_size,
-            DiscovererTypes.WRITER,
-            start_connection_callback,
-            no_connection_callback,
-            debug,
-        )
-
+        self._ros_pub = rospy.Publisher(topic, Float32MultiArray, queue_size=10)
+        
     def publish(self, msg_arr: typing.List[typing.Any]):
-        """Publish a message by writing to shared memory.
+        msg = Float32MultiArray()
+        msg.data = msg_arr
+        self._ros_pub.publish(msg)
+    
 
-        If no subscriber is connected, this function terminates immediately
+    # def __init__(
+    #     self,
+    #     topic: str,
+    #     data_type: type,
+    #     arr_size: int,
+    #     start_connection_callback: typing.Callable[[], None] = None,
+    #     no_connection_callback: typing.Callable[[], None] = None,
+    #     debug=False,
+    # ):
+    #     super().__init__(
+    #         topic,
+    #         data_type,
+    #         arr_size,
+    #         DiscovererTypes.WRITER,
+    #         start_connection_callback,
+    #         no_connection_callback,
+    #         debug,
+    #     )
 
-        Args:
-            msg_arr (typing.List[typing.Any]): messsage of specified type in the constructor
+    # def publish(self, msg_arr: typing.List[typing.Any]):
+    #     """Publish a message by writing to shared memory.
 
-        Raises:
-            RuntimeError: if the message size does not match
-        """
-        # Timeout set to 0, so we just check if there's at least one subscriber
-        # without waiting
-        if self._discoverer.wait_to_proceed(timeout=0):
-            packed_data = struct.pack(self.struct_data_type_str, *msg_arr)
-            packed_timestamp = struct.pack("d", time.time())
-            if len(packed_data) != self.data_size:
-                raise RuntimeError(
-                    f"Published message array mismatching. Expected {self.data_size/_get_size(self.data_type)}, got {len(msg_arr)}"
-                )
-            with self.sem:
-                try:
-                    self.mmap[: len(packed_data)] = packed_data
-                    self.timestamp_mmap[: len(packed_timestamp)] = packed_timestamp
-                    self.logger.debug(f"publishing: {msg_arr}")
-                # This happens if the previous use of shared memory has a different size
-                except IndexError:
-                    self._reset_shared_memory()
-                    self.logger.warning(
-                        "Previous use of the shared memory is incompatible. It's now cleaned"
-                    )
+    #     If no subscriber is connected, this function terminates immediately
+
+    #     Args:
+    #         msg_arr (typing.List[typing.Any]): messsage of specified type in the constructor
+
+    #     Raises:
+    #         RuntimeError: if the message size does not match
+    #     """
+    #     # Timeout set to 0, so we just check if there's at least one subscriber
+    #     # without waiting
+    #     if self._discoverer.wait_to_proceed(timeout=0):
+    #         packed_data = struct.pack(self.struct_data_type_str, *msg_arr)
+    #         packed_timestamp = struct.pack("d", time.time())
+    #         if len(packed_data) != self.data_size:
+    #             raise RuntimeError(
+    #                 f"Published message array mismatching. Expected {self.data_size/_get_size(self.data_type)}, got {len(msg_arr)}"
+    #             )
+    #         with self.sem:
+    #             try:
+    #                 self.mmap[: len(packed_data)] = packed_data
+    #                 self.timestamp_mmap[: len(packed_timestamp)] = packed_timestamp
+    #                 self.logger.debug(f"publishing: {msg_arr}")
+    #             # This happens if the previous use of shared memory has a different size
+    #             except IndexError:
+    #                 self._reset_shared_memory()
+    #                 self.logger.warning(
+    #                     "Previous use of the shared memory is incompatible. It's now cleaned"
+    #                 )
 
 
 class SharedMemorySub(SharedMemoryPubSubBase):
@@ -209,61 +229,83 @@ class SharedMemorySub(SharedMemoryPubSubBase):
         arr_size: int,
         read_frequency: int,
         callback: typing.Callable[[tuple], None],
-        start_connection_callback: typing.Callable[[tuple], None] = None,
+        start_connection_callback: typing.Callable[[], None] = None,
         no_connection_callback: typing.Callable[[], None] = None,
         debug=False,
     ):
-        super().__init__(
-            topic,
-            data_type,
-            arr_size,
-            DiscovererTypes.READER,
-            start_connection_callback,
-            no_connection_callback,
-            debug,
-        )
-        self.callback = callback
-        self.rate = Rate(read_frequency)
-        self._th = threading.Thread(target=self.__run, daemon=False)
-        self._th.start()
+            
+        self._has_connection = False
+        _start_connection_callback = start_connection_callback
+        # get ros subscriber
+        def ros_callback(msg):
+            if not self._has_connection:
+                _start_connection_callback()
+            self._has_connection = True
+            callback(msg.data)
+        self._ros_sub = rospy.Subscriber(topic, Float32MultiArray, ros_callback)
 
-    def __run(self):
-        # make it properly take signals
-        last_msg_timestamp: float = 0
-        while threading.main_thread().is_alive():
-            if self._discoverer.wait_to_proceed(timeout=3):
-                connection_start_timestamp = (
-                    self._discoverer.get_current_connection_start_time_time()
-                )
-                with self.sem:
-                    current_msg_timestamp = float(
-                        struct.unpack("d", self.timestamp_mmap[: self.timestamp_size])[
-                            0
-                        ]
-                    )
-                    if (
-                        current_msg_timestamp
-                        and current_msg_timestamp != last_msg_timestamp
-                    ):
-                        if current_msg_timestamp > connection_start_timestamp:
-                            try:
-                                unpacked_msg = struct.unpack(
-                                    self.struct_data_type_str,
-                                    self.mmap[: self.data_size],
-                                )
-                                last_msg_timestamp = current_msg_timestamp
-                                self.callback(unpacked_msg)
-                                self.logger.debug(f"unpacked_msg: {unpacked_msg}")
-                            except struct.error as e:
-                                self._reset_shared_memory()
-                                print(
-                                    "WARNING: Previous use of the shared memory is incompatible. It's now cleaned"
-                                )
-                self.rate.sleep()
+    # def __init__(
+    #     self,
+    #     topic: str,
+    #     data_type: type,
+    #     arr_size: int,
+    #     read_frequency: int,
+    #     callback: typing.Callable[[tuple], None],
+    #     start_connection_callback: typing.Callable[[tuple], None] = None,
+    #     no_connection_callback: typing.Callable[[], None] = None,
+    #     debug=False,
+    # ):
+    #     super().__init__(
+    #         topic,
+    #         data_type,
+    #         arr_size,
+    #         DiscovererTypes.READER,
+    #         start_connection_callback,
+    #         no_connection_callback,
+    #         debug,
+    #     )
+    #     self.callback = callback
+    #     self.rate = Rate(read_frequency)
+    #     self._th = threading.Thread(target=self.__run, daemon=False)
+    #     self._th.start()
 
-    def __cleanup(self):
-        super().__cleanup()
-        self._th.join()
+    # def __run(self):
+    #     # make it properly take signals
+    #     last_msg_timestamp: float = 0
+    #     while threading.main_thread().is_alive():
+    #         if self._discoverer.wait_to_proceed(timeout=3):
+    #             connection_start_timestamp = (
+    #                 self._discoverer.get_current_connection_start_time_time()
+    #             )
+    #             with self.sem:
+    #                 current_msg_timestamp = float(
+    #                     struct.unpack("d", self.timestamp_mmap[: self.timestamp_size])[
+    #                         0
+    #                     ]
+    #                 )
+    #                 if (
+    #                     current_msg_timestamp
+    #                     and current_msg_timestamp != last_msg_timestamp
+    #                 ):
+    #                     if current_msg_timestamp > connection_start_timestamp:
+    #                         try:
+    #                             unpacked_msg = struct.unpack(
+    #                                 self.struct_data_type_str,
+    #                                 self.mmap[: self.data_size],
+    #                             )
+    #                             last_msg_timestamp = current_msg_timestamp
+    #                             self.callback(unpacked_msg)
+    #                             self.logger.debug(f"unpacked_msg: {unpacked_msg}")
+    #                         except struct.error as e:
+    #                             self._reset_shared_memory()
+    #                             print(
+    #                                 "WARNING: Previous use of the shared memory is incompatible. It's now cleaned"
+    #                             )
+    #             self.rate.sleep()
+
+    # def __cleanup(self):
+    #     super().__cleanup()
+    #     self._th.join()
 
 
 if __name__ == "__main__":
