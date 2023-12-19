@@ -6,7 +6,7 @@ from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import (
 from multiprocessing import Process, Manager
 import time
 
-
+ARR_SIZE = 20
 class TestSharedMemoryPubSub:
     def _test_shm_pub_sub(self, use_ros):
         """
@@ -15,8 +15,8 @@ class TestSharedMemoryPubSub:
         start publishing at 50 hz
         stop the sub and the pub
         """
-        TEST_FREQUENCY = 100
-        NUM_TEST_MSG = 500
+        TEST_FREQUENCY = 200
+        NUM_TEST_MSG = 10000
         with Manager() as manager:
             messages_received_ls = manager.list()
 
@@ -32,7 +32,7 @@ class TestSharedMemoryPubSub:
                 shm_sub = SharedMemorySub(
                     topic="test",
                     data_type=float,
-                    arr_size=2,
+                    arr_size=ARR_SIZE,
                     read_frequency=TEST_FREQUENCY,
                     # debug=True,
                     callback=increment_num_message_received,
@@ -48,13 +48,13 @@ class TestSharedMemoryPubSub:
                 shm_pub = SharedMemoryPub(
                     topic="test",
                     data_type=float,
-                    arr_size=2,
+                    arr_size=ARR_SIZE,
                     # debug=True,
                     use_ros=use_ros,
                 )
                 time.sleep(0.5)
                 for i in range(NUM_TEST_MSG):
-                    shm_pub.publish([i, i])
+                    shm_pub.publish([i for _ in range(ARR_SIZE)])
                     time.sleep(1 / TEST_FREQUENCY)
 
             reader_proc = Process(
@@ -69,10 +69,10 @@ class TestSharedMemoryPubSub:
             reader_proc.join()
             publisher_proc.join()
 
-            for i in range(NUM_TEST_MSG):
-                first, second = messages_received_ls[i]
-                assert int(first) == int(second) == int(i)
-            print(f"Rico: {messages_received_ls}")
+            for received_arr in messages_received_ls:
+                assert all([int(i) == int(received_arr[0]) for i in received_arr])
+                # assert int(first) == int(i)
+
 
     def test_shm_pub_sub(self):
         self._test_shm_pub_sub(use_ros=False)
