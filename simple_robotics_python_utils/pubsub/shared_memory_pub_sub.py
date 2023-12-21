@@ -11,11 +11,30 @@ Some notes are:-
     - UDP multicast: a multicast packet can be sent to multiple listening processes. TCP does not have that feature
     - ROS1 uses 11311 as the default port.
 
-Quirks of the Pub-Sub Framework:
+Quirks of this implementation
+- PLEASE USE CAUTIOUSLY IN TIME CRITICAL CODE
+    - Our test shows that there subscriber could miss messages over 40hz
 - The lifttime of the discoverer, hence pubs and subs, are process time
 - Instantiation of the pub and the sub must be in the same process because of the background discoverer thread
     - However, it can be shared within the same process
+- This is a python implementation, there could be slowdowns!
+- **Partner's heartbeats are lost in UDP multicast**
+    - This leads to messages are not being published
+
+Future work:
+- For the UDP multicast issue, I thought about adding ack/nack. However, to make it robust,
+we need a unicast port for each partner. 
+
+References:
+- In FastDDS, How it works (https://blog.yanjingang.com/?p=6809)
+- Discovery phase: PDP (Participant Discovery Phase) and EDP (endpoint discovery phase)
+    1. The Participant discovery phase
+        - Each participant is a publisher/subscriber of a topic.
+        - Simple Participant Discovery Phase. That's where UDP comes into play
+    2. EDP: publisher and subscriber talk through a unicast port, to match their topic, and QoS. If matched, start pub/sub.
+- you can send Ack/Nack messages as receipt / non-receipt of heartbeats
 """
+
 import atexit
 import ctypes
 import mmap
@@ -28,6 +47,9 @@ import posix_ipc
 from simple_robotics_python_utils.pubsub.pub_sub_utils import spin, Rate
 from simple_robotics_python_utils.common.logger import get_logger
 from simple_robotics_python_utils.pubsub.discoverer import Discoverer, DiscovererTypes
+
+import rospy
+from std_msgs.msg import Float32MultiArray
 
 ###############################################
 # Util Functions
@@ -157,17 +179,23 @@ class SharedMemoryPub(SharedMemoryPubSubBase):
         start_connection_callback: typing.Callable[[], None] = None,
         no_connection_callback: typing.Callable[[], None] = None,
         debug=False,
+        # set to true because its speed performance is better
+        use_ros = True
     ):
-        super().__init__(
-            topic,
-            data_type,
-            arr_size,
-            DiscovererTypes.WRITER,
-            start_connection_callback,
-            no_connection_callback,
-            debug,
-        )
-
+        self.use_ros = use_ros
+        if self.use_ros:
+            self._ros_pub = rospy.Publisher(topic, Float32MultiArray, queue_size=10)
+        else:
+            super().__init__(
+                topic,
+                data_type,
+                arr_size,
+                DiscovererTypes.WRITER,
+                start_connection_callback,
+                no_connection_callback,
+                debug,
+            )
+        
     def publish(self, msg_arr: typing.List[typing.Any]):
         """Publish a message by writing to shared memory.
 
@@ -179,26 +207,31 @@ class SharedMemoryPub(SharedMemoryPubSubBase):
         Raises:
             RuntimeError: if the message size does not match
         """
-        # Timeout set to 0, so we just check if there's at least one subscriber
-        # without waiting
-        if self._discoverer.wait_to_proceed(timeout=0):
-            packed_data = struct.pack(self.struct_data_type_str, *msg_arr)
-            packed_timestamp = struct.pack("d", time.time())
-            if len(packed_data) != self.data_size:
-                raise RuntimeError(
-                    f"Published message array mismatching. Expected {self.data_size/_get_size(self.data_type)}, got {len(msg_arr)}"
-                )
-            with self.sem:
-                try:
-                    self.mmap[: len(packed_data)] = packed_data
-                    self.timestamp_mmap[: len(packed_timestamp)] = packed_timestamp
-                    self.logger.debug(f"publishing: {msg_arr}")
-                # This happens if the previous use of shared memory has a different size
-                except IndexError:
-                    self._reset_shared_memory()
-                    self.logger.warning(
-                        "Previous use of the shared memory is incompatible. It's now cleaned"
+        if self.use_ros:
+            msg = Float32MultiArray()
+            msg.data = msg_arr
+            self._ros_pub.publish(msg)
+        else:
+            # Timeout set to 0, so we just check if there's at least one subscriber
+            # without waiting
+            if self._discoverer.wait_to_proceed(timeout=0):
+                packed_data = struct.pack(self.struct_data_type_str, *msg_arr)
+                packed_timestamp = struct.pack("d", time.time())
+                if len(packed_data) != self.data_size:
+                    raise RuntimeError(
+                        f"Published message array mismatching. Expected {self.data_size/_get_size(self.data_type)}, got {len(msg_arr)}"
                     )
+                with self.sem:
+                    try:
+                        self.mmap[: len(packed_data)] = packed_data
+                        self.timestamp_mmap[: len(packed_timestamp)] = packed_timestamp
+                        self.logger.debug(f"publishing: {msg_arr}")
+                    # This happens if the previous use of shared memory has a different size
+                    except IndexError:
+                        self._reset_shared_memory()
+                        self.logger.warning(
+                            "Previous use of the shared memory is incompatible. It's now cleaned"
+                        )
 
 
 class SharedMemorySub(SharedMemoryPubSubBase):
@@ -209,23 +242,37 @@ class SharedMemorySub(SharedMemoryPubSubBase):
         arr_size: int,
         read_frequency: int,
         callback: typing.Callable[[tuple], None],
-        start_connection_callback: typing.Callable[[tuple], None] = None,
+        start_connection_callback: typing.Callable[[], None] = None,
         no_connection_callback: typing.Callable[[], None] = None,
         debug=False,
+        # set to true because its speed performance is better
+        use_ros = True
     ):
-        super().__init__(
-            topic,
-            data_type,
-            arr_size,
-            DiscovererTypes.READER,
-            start_connection_callback,
-            no_connection_callback,
-            debug,
-        )
-        self.callback = callback
-        self.rate = Rate(read_frequency)
-        self._th = threading.Thread(target=self.__run, daemon=False)
-        self._th.start()
+        self.use_ros = use_ros
+        if self.use_ros:
+            self._has_connection = False
+            _start_connection_callback = start_connection_callback
+            # get ros subscriber
+            def ros_callback(msg):
+                if not self._has_connection and _start_connection_callback:
+                    _start_connection_callback()
+                self._has_connection = True
+                callback(msg.data)
+            self._ros_sub = rospy.Subscriber(topic, Float32MultiArray, ros_callback)
+        else:
+            super().__init__(
+                topic,
+                data_type,
+                arr_size,
+                DiscovererTypes.READER,
+                start_connection_callback,
+                no_connection_callback,
+                debug,
+            )
+            self.callback = callback
+            self.rate = Rate(read_frequency)
+            self._th = threading.Thread(target=self.__run, daemon=False)
+            self._th.start()
 
     def __run(self):
         # make it properly take signals
