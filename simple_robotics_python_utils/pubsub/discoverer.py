@@ -22,7 +22,7 @@ class DiscovererTypes(enum.Enum):
 
 DISCOVERER_UDP_PORT = 5007
 DISCOVERER_MULTICAST_GROUP_ADDR = "224.0.0.1"
-UDP_BROADCAST_TIMEOUT = 1
+UDP_BROADCAST_TIMEOUT = 100
 CONNECTION_EXPIRATION_TIMEOUT = UDP_BROADCAST_TIMEOUT * 10
 HELLO = "h"
 BYE = "b"
@@ -38,7 +38,6 @@ class Discoverer:
         During cleanup:
         pub will say bye on TCP: "bye, <TOPIC>"
         sub will say bye to its pubs through TCP.
-
     """
 
     def __init__(

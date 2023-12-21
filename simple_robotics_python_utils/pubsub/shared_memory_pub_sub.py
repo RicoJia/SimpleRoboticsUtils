@@ -17,7 +17,24 @@ Quirks of this implementation
 - The lifttime of the discoverer, hence pubs and subs, are process time
 - Instantiation of the pub and the sub must be in the same process because of the background discoverer thread
     - However, it can be shared within the same process
+- This is a python implementation, there could be slowdowns!
+- **Partner's heartbeats are lost in UDP multicast**
+    - This leads to messages are not being published
+
+Future work:
+- For the UDP multicast issue, I thought about adding ack/nack. However, to make it robust,
+we need a unicast port for each partner. 
+
+References:
+- In FastDDS, How it works (https://blog.yanjingang.com/?p=6809)
+- Discovery phase: PDP (Participant Discovery Phase) and EDP (endpoint discovery phase)
+    1. The Participant discovery phase
+        - Each participant is a publisher/subscriber of a topic.
+        - Simple Participant Discovery Phase. That's where UDP comes into play
+    2. EDP: publisher and subscriber talk through a unicast port, to match their topic, and QoS. If matched, start pub/sub.
+- you can send Ack/Nack messages as receipt / non-receipt of heartbeats
 """
+
 import atexit
 import ctypes
 import mmap
