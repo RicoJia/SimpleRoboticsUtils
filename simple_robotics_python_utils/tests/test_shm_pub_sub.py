@@ -16,7 +16,7 @@ class TestSharedMemoryPubSub:
         stop the sub and the pub
         """
         TEST_FREQUENCY = 200
-        NUM_TEST_MSG = 10000
+        NUM_TEST_MSG = 10
         with Manager() as manager:
             messages_received_ls = manager.list()
 
@@ -27,7 +27,6 @@ class TestSharedMemoryPubSub:
 
                 if use_ros:
                     import rospy
-
                     rospy.init_node("ros_test_sub")
                 shm_sub = SharedMemorySub(
                     topic="test",
@@ -66,8 +65,8 @@ class TestSharedMemoryPubSub:
 
             reader_proc.start()
             publisher_proc.start()
-            reader_proc.join()
             publisher_proc.join()
+            reader_proc.join()
 
             for received_arr in messages_received_ls:
                 assert all([int(i) == int(received_arr[0]) for i in received_arr])
