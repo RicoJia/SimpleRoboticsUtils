@@ -3,7 +3,7 @@
     - Provides a single "overridable" main function, for multiple test source files, in gtest_main library. 
     So evetually, you can have one binary for them
  */
-#include "math_utils.hpp"
+#include "simple_robotics_cpp_utils/math_utils.hpp"
 #include <gtest/gtest.h>
 #include <iostream>
 
