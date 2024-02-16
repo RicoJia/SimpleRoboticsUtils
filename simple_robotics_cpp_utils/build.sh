@@ -13,7 +13,9 @@ mkdir $BUILD_PATH
 cd $BUILD_PATH
 cmake ..
 make -j7
-make test
+# make test runs ctest, which by default does not capture stdout
+# make test
+ctest -V
 sudo make install
 cd $THIS_FILE_DIR
 rm -rf $BUILD_PATH
