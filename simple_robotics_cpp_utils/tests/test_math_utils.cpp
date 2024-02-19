@@ -56,3 +56,11 @@ TEST(MathUtilsTest, TestDrawFromPdfNormalMultivariate) {
     test_univariate(results[i], means[i], std::sqrt(cov(i, i)));
   }
 }
+
+TEST(MathUtilsTest, test_normal_dist_prob) {
+  const double mean = 0, std_dev = 1, val = 0;
+  double prob =
+      SimpleRoboticsCppUtils::normal_dist_prob(mean, std_dev, val, false);
+  EXPECT_DOUBLE_EQ(prob,
+                   1 / std_dev * SimpleRoboticsCppUtils::ROOT_2PI_INVERSE);
+}

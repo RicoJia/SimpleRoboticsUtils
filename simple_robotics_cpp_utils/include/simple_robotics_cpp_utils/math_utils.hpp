@@ -15,9 +15,19 @@ portable
 #include <Eigen/Dense>
 #include <cassert>
 #include <cmath>
+#include <iostream>
 #include <random>
 
 namespace SimpleRoboticsCppUtils {
+
+constexpr double TWO_M_PI = (2 * M_PI);
+// can't use std::sqrt in C++17 in constexpr
+constexpr double ROOT_2PI_INVERSE = 0.3989422804014327;
+
+// normalize angles [-pi, pi]
+inline double normalize_angle_PI(const double &angle) {
+  return std::fmod(angle + M_PI, TWO_M_PI) - M_PI;
+}
 
 /**
  * @brief Draw from univariate normal distribution with specified mean and
@@ -54,6 +64,7 @@ draw_from_pdf_normal(const Eigen::VectorXd &means,
   if (llt.info() == Eigen::NumericalIssue) {
     throw std::runtime_error("Lower Cholesky decomposition failed");
   }
+  // L is "the square root" of the covariance matrix
   Eigen::MatrixXd L = llt.matrixL();
   // Note, Zero() returns an expression object, which is an rvalue referece.
   Eigen::VectorXd return_vec = Eigen::VectorXd::Zero(means.size());
@@ -63,6 +74,14 @@ draw_from_pdf_normal(const Eigen::VectorXd &means,
   }
   return_vec = means + L * return_vec;
   return return_vec;
+}
+
+inline double normal_dist_prob(const double &mean, const double &std_dev,
+                               const double &val, bool return_log_score) {
+  double exponential_term = -0.5 * std::pow((val - mean) / std_dev, 2);
+  return (return_log_score)
+             ? exponential_term
+             : 1.0 / std_dev * ROOT_2PI_INVERSE * exp(exponential_term);
 }
 
 } // namespace SimpleRoboticsCppUtils
