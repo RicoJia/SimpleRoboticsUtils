@@ -1,8 +1,7 @@
-
-// #include "simple_robotics_cpp_utils/rigid2d.hpp"
 #include "simple_robotics_cpp_utils/rigid2d.hpp"
 #include <cmath>
 #include <gtest/gtest.h>
+#include <simple_robotics_cpp_utils/math_utils.hpp>
 #include <unordered_map>
 #include <utility>
 using namespace SimpleRoboticsCppUtils;
@@ -44,8 +43,8 @@ TEST(Rigid2DTest, TestDrawingFromIcc) {
   std::vector<Pose2D> noiseless_new_pose_ls{
       Pose2D{WHEEL_DIST, 0, 0},
       Pose2D{0, 0, M_PI},
-      Pose2D{0, 0, M_PI / 2.0},
       Pose2D{0, 0, -M_PI / 2.0},
+      Pose2D{0, 0, M_PI / 2.0},
       Pose2D{WHEEL_DIST, WHEEL_DIST, M_PI / 2.0},
   };
   ASSERT_EQ(odoms_list.size(), screw_displacements_list.size());
@@ -55,14 +54,14 @@ TEST(Rigid2DTest, TestDrawingFromIcc) {
     auto [d_v, d_theta] = screw_displacements_list[i];
     auto [d_v_estimate, d_theta_estimate] = screw_displacements;
     EXPECT_NEAR(d_v_estimate, d_v, ABS_ERROR);
-    EXPECT_NEAR(d_theta_estimate, d_theta, ABS_ERROR);
+    EXPECT_NEAR(normalize_angle_2PI(d_theta_estimate),
+                normalize_angle_2PI(d_theta), ABS_ERROR);
 
     auto [prob, new_pose] = draw_from_icc(prev_pose, screw_displacements, cov);
     //
     EXPECT_NEAR(new_pose.x, noiseless_new_pose_ls[i].x, ABS_ERROR);
-    // EXPECT_NEAR(new_pose.y, noiseless_new_pose_ls[i].y, ABS_ERROR);
-    // // Using std::abs pi and -pi are the same
-    EXPECT_NEAR(std::abs(new_pose.theta),
-                std::abs(noiseless_new_pose_ls[i].theta), ABS_ERROR);
+    EXPECT_NEAR(new_pose.y, noiseless_new_pose_ls[i].y, ABS_ERROR);
+    EXPECT_NEAR(normalize_angle_2PI(new_pose.theta),
+                normalize_angle_2PI(noiseless_new_pose_ls[i].theta), ABS_ERROR);
   }
 }

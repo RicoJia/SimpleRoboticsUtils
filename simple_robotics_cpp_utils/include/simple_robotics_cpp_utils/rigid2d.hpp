@@ -75,7 +75,9 @@ inline std::pair<double, double>
 get_2D_screw_displacement(const std::pair<double, double> &odoms,
                           const double &wheel_dist) {
   auto [l, r] = odoms;
-  double d_theta = normalize_angle_PI((r - l) / wheel_dist);
+  // TODO
+  std::cout << "(r - l) / wheel_dist" << (r - l) / wheel_dist << std::endl;
+  double d_theta = normalize_angle_2PI((r - l) / wheel_dist);
   double d_v = (r + l) / 2;
   return {d_v, d_theta};
 }
@@ -111,7 +113,7 @@ draw_from_icc(const Pose2D &prev_pose,
   double prob = exp(log_prob);
   const double d_theta_before_noise = d_theta;
   d_v += noises[0], d_theta += noises[1];
-  double new_theta = prev_pose.theta + d_theta;
+  double new_theta = normalize_angle_2PI(prev_pose.theta + d_theta);
 
   if (std::abs(d_theta_before_noise) < 1e-3) {
     Pose2D pose{prev_pose.x + d_v * cos(new_theta),

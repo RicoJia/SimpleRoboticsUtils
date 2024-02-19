@@ -24,9 +24,17 @@ constexpr double TWO_M_PI = (2 * M_PI);
 // can't use std::sqrt in C++17 in constexpr
 constexpr double ROOT_2PI_INVERSE = 0.3989422804014327;
 
-// normalize angles [-pi, pi]
-inline double normalize_angle_PI(const double &angle) {
-  return std::fmod(angle + M_PI, TWO_M_PI) - M_PI;
+/**
+ * @brief normalize angle to [0, 2pi], with 2pi-1e-5 being considered 2pi
+ *
+ * @param angle : angle to normalized
+ * @return double : normalized angle
+ */
+inline double normalize_angle_2PI(const double &angle) {
+  double return_angle = std::fmod(angle, TWO_M_PI);
+  return_angle = (return_angle < 0) ? return_angle + TWO_M_PI : return_angle;
+  return_angle = (TWO_M_PI - return_angle) < 1e-5 ? 0 : return_angle;
+  return return_angle;
 }
 
 /**
