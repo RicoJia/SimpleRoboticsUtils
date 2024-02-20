@@ -64,3 +64,35 @@ TEST(MathUtilsTest, test_normal_dist_prob) {
   EXPECT_DOUBLE_EQ(prob,
                    1 / std_dev * SimpleRoboticsCppUtils::ROOT_2PI_INVERSE);
 }
+
+TEST(MathUtilsTest, Transform4dTo3d) {
+  // Define a 4D transformation matrix (for simplicity, use a rotation around
+  // Z-axis and a translation)
+  Eigen::Matrix4d T_4d = Eigen::Matrix4d::Identity();
+  double angle = M_PI / 4; // 45 degrees
+  T_4d(0, 0) = cos(angle);
+  T_4d(0, 1) = -sin(angle);
+  T_4d(0, 3) = 1.0; // Translation in x
+  T_4d(1, 0) = sin(angle);
+  T_4d(1, 1) = cos(angle);
+  T_4d(1, 3) = 2.0; // Translation in y
+
+  // Expected 3D transformation matrix
+  Eigen::Matrix3d expected_T_3d = Eigen::Matrix3d::Identity();
+  expected_T_3d(0, 0) = cos(angle);
+  expected_T_3d(0, 1) = -sin(angle);
+  expected_T_3d(0, 2) = 1.0;
+  expected_T_3d(1, 0) = sin(angle);
+  expected_T_3d(1, 1) = cos(angle);
+  expected_T_3d(1, 2) = 2.0;
+
+  // Perform the transformation
+  Eigen::Matrix3d actual_T_3d =
+      SimpleRoboticsCppUtils::transform_4d_to_3d(T_4d);
+
+  // Assertions to check if the transformation was correct
+  assert(actual_T_3d.isApprox(expected_T_3d) &&
+         "The transformation result does not match the expected output.");
+
+  std::cout << "Test passed: 4D to 3D transformation is correct.\n";
+}

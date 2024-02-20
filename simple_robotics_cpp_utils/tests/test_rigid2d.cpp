@@ -65,3 +65,27 @@ TEST(Rigid2DTest, TestDrawingFromIcc) {
                 normalize_angle_2PI(noiseless_new_pose_ls[i].theta), ABS_ERROR);
   }
 }
+
+TEST(Rigid2DTest, TestScrewDisplacement2dToTransform) {
+  std::vector<std::pair<double, double>> screw_displacements_list{
+      {M_PI / 2.0, M_PI / 2.0},
+      {M_PI / 2.0, -M_PI / 2.0},
+      {1, 0.0},
+      {-M_PI / 2.0, M_PI / 2.0},
+  };
+  std::vector<Pose2D> end_pose_list{
+      {1, 1, M_PI / 2.0},
+      {1, -1, -M_PI / 2.0},
+      {1, 0, 0},
+      {-1, -1, M_PI / 2.0},
+  };
+  assert(screw_displacements_list.size() == end_pose_list.size());
+  for (unsigned i = 0; i < screw_displacements_list.size(); i++) {
+    auto end_pose = end_pose_list[i];
+    auto T = screw_displacement_2d_to_body_frame_transform(
+        screw_displacements_list[i]);
+    EXPECT_NEAR(T(0, 3), end_pose.x, 1e-5);
+    EXPECT_NEAR(T(1, 3), end_pose.y, 1e-5);
+    auto T_3d = transform_4d_to_3d(T);
+  }
+}

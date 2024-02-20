@@ -12,11 +12,14 @@ inline
 portable
 */
 #pragma once
+#include <Eigen/Core>
 #include <Eigen/Dense>
 #include <cassert>
 #include <cmath>
+#include <eigen3/Eigen/src/Geometry/AngleAxis.h>
 #include <iostream>
 #include <random>
+#include <utility>
 
 namespace SimpleRoboticsCppUtils {
 
@@ -35,6 +38,55 @@ inline double normalize_angle_2PI(const double &angle) {
   return_angle = (return_angle < 0) ? return_angle + TWO_M_PI : return_angle;
   return_angle = (TWO_M_PI - return_angle) < 1e-5 ? 0 : return_angle;
   return return_angle;
+}
+
+/**
+ * @brief Returning d_v, and d_theta along a circlar arc, since on 2D, screw
+ * axis is the z axis, and translation is 0 along z.
+ *
+ * @param prev_pose : previous pose
+ * @param odoms : [left_odom, right_odom], in meters
+ * @param wheel_dist : distance between left and right wheels in meters
+ * @return std::pair <double, double> : change in arc length (d_v) and rotation
+ * (d_theta)
+ */
+inline std::pair<double, double>
+get_2D_screw_displacement(const std::pair<double, double> &odoms,
+                          const double &wheel_dist) {
+  auto [l, r] = odoms;
+  // TODO
+  std::cout << "(r - l) / wheel_dist" << (r - l) / wheel_dist << std::endl;
+  double d_theta = normalize_angle_2PI((r - l) / wheel_dist);
+  double d_v = (r + l) / 2;
+  return {d_v, d_theta};
+}
+
+// Returns transform in body frame, from starting point to ending point
+inline Eigen::Matrix4d screw_displacement_2d_to_body_frame_transform(
+    const std::pair<double, double> &screw_displacement) {
+  auto [d_v, d_theta] = screw_displacement;
+  Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
+  Eigen::Matrix3d R =
+      Eigen::AngleAxisd(d_theta, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+  T.block<3, 3>(0, 0) = R;
+  double tx, ty;
+  if (std::abs(d_theta) < 1e-5) {
+    tx = d_v;
+    ty = 0;
+  } else {
+    double r = d_v / d_theta;
+    tx = r * std::sin(d_theta);
+    ty = r * (1 - std::cos(d_theta));
+  }
+  T(0, 3) = tx;
+  T(1, 3) = ty;
+  return T;
+}
+
+inline Eigen::Matrix3d transform_4d_to_3d(const Eigen::Matrix4d &T) {
+  Eigen::Matrix3d T_3d = Eigen::Matrix3d::Identity();
+  T_3d << T(0, 0), T(0, 1), T(0, 3), T(1, 0), T(1, 1), T(1, 3), 0.0, 0.0, 1.0;
+  return T_3d;
 }
 
 /**

@@ -62,27 +62,6 @@ inline bool operator==(const Pixel2DWithCount &p1, const Pixel2DWithCount &p2) {
 }
 
 /**
- * @brief Returning d_v, and d_theta along a circlar arc, since on 2D, screw
- * axis is the z axis, and translation is 0 along z.
- *
- * @param prev_pose : previous pose
- * @param odoms : [left_odom, right_odom], in meters
- * @param wheel_dist : distance between left and right wheels in meters
- * @return std::pair <double, double> : change in arc length (d_v) and rotation
- * (d_theta)
- */
-inline std::pair<double, double>
-get_2D_screw_displacement(const std::pair<double, double> &odoms,
-                          const double &wheel_dist) {
-  auto [l, r] = odoms;
-  // TODO
-  std::cout << "(r - l) / wheel_dist" << (r - l) / wheel_dist << std::endl;
-  double d_theta = normalize_angle_2PI((r - l) / wheel_dist);
-  double d_v = (r + l) / 2;
-  return {d_v, d_theta};
-}
-
-/**
  * @brief : Assuming the motion current and previous odom pose is a circular arc
  * (2D screw motion), icc (instantaneous center of curvature). We add a noise to
  * the screw displacements v and theta One lesson learned in this function is,
