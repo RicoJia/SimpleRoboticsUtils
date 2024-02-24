@@ -61,14 +61,19 @@ get_2D_screw_displacement(const std::pair<double, double> &odoms,
   return {d_v, d_theta};
 }
 
+inline Eigen::Matrix4d get_transform_from_2d_rotation(const double &theta) {
+  Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
+  Eigen::Matrix3d R =
+      Eigen::AngleAxisd(theta, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+  T.block<3, 3>(0, 0) = R;
+  return T;
+}
+
 // Returns transform in body frame, from starting point to ending point
 inline Eigen::Matrix4d screw_displacement_2d_to_body_frame_transform(
     const std::pair<double, double> &screw_displacement) {
   auto [d_v, d_theta] = screw_displacement;
-  Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
-  Eigen::Matrix3d R =
-      Eigen::AngleAxisd(d_theta, Eigen::Vector3d::UnitZ()).toRotationMatrix();
-  T.block<3, 3>(0, 0) = R;
+  Eigen::Matrix4d T = get_transform_from_2d_rotation(d_theta);
   double tx, ty;
   if (std::abs(d_theta) < 1e-5) {
     tx = d_v;
@@ -87,6 +92,12 @@ inline Eigen::Matrix3d transform_4d_to_3d(const Eigen::Matrix4d &T) {
   Eigen::Matrix3d T_3d = Eigen::Matrix3d::Identity();
   T_3d << T(0, 0), T(0, 1), T(0, 3), T(1, 0), T(1, 1), T(1, 3), 0.0, 0.0, 1.0;
   return T_3d;
+}
+
+inline double get_2d_rotation_from_z_axis(const Eigen::Matrix4d &T) {
+  double cos_theta = T(0, 0);
+  double sin_theta = T(1, 0);
+  return std::atan2(sin_theta, cos_theta);
 }
 
 /**

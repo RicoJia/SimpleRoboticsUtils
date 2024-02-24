@@ -18,6 +18,14 @@ namespace SimpleRoboticsCppUtils {
 struct Pose2D {
   double x, y, theta;
   Pose2D(double x_, double y_, double theta_) : x(x_), y(y_), theta(theta_) {}
+  Pose2D(const Eigen::Matrix4d &T)
+      : x(T(0, 3)), y(T(1, 3)), theta(std::atan2(T(1, 0), T(0, 0))) {}
+  inline Eigen::Matrix4d to_se3() const {
+    Eigen::Matrix4d T;
+    T << cos(theta), -sin(theta), 0, x, sin(theta), cos(theta), 0, y, 0, 0, 1,
+        0, 0, 0, 0, 1;
+    return T;
+  }
 };
 
 struct Pixel2DWithCount {

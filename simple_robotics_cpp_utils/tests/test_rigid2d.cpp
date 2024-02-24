@@ -14,6 +14,20 @@ TEST(Rigid2DTest, TestAngle) {
   }
 }
 
+TEST(Rigid2DTest, TestTo4D) {
+  Pose2D p1(1, 2, M_PI / 4);
+  Eigen::Matrix4d T = p1.to_se3();
+  EXPECT_NEAR(p1.x, T(0, 3), 1e-5);
+  EXPECT_NEAR(p1.y, T(1, 3), 1e-5);
+  EXPECT_NEAR(0, T(2, 3), 1e-5);
+  EXPECT_NEAR(get_2d_rotation_from_z_axis(T), M_PI / 4, 1e-5);
+
+  Pose2D p2(T);
+  EXPECT_NEAR(p2.x, 1, 1e-5);
+  EXPECT_NEAR(p2.y, 2, 1e-5);
+  EXPECT_NEAR(p2.theta, 1, M_PI / 4);
+}
+
 TEST(Rigid2DTest, TestDrawingFromIcc) {
   // Testing with zero matrix will make lower cholesky decomposition fail
   const double std_dev = 1e-6;

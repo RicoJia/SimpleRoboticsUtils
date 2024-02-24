@@ -6,6 +6,7 @@
 #include "simple_robotics_cpp_utils/math_utils.hpp"
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <numeric>
@@ -95,4 +96,17 @@ TEST(MathUtilsTest, Transform4dTo3d) {
          "The transformation result does not match the expected output.");
 
   std::cout << "Test passed: 4D to 3D transformation is correct.\n";
+}
+
+TEST(MathUtilsTest, RotationAroundZ) {
+  Eigen::Matrix4d transform =
+      SimpleRoboticsCppUtils::get_transform_from_2d_rotation(M_PI_2);
+
+  // Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
+  // // Test 90 degrees (π/2 radians)
+  // transform.block<3,3>(0,0) = Eigen::AngleAxisd(M_PI_2,
+  // Eigen::Vector3d::UnitZ()).toRotationMatrix();
+  assert(
+      std::abs(SimpleRoboticsCppUtils::get_2d_rotation_from_z_axis(transform) -
+               M_PI_2) < 1e-6);
 }
