@@ -30,10 +30,9 @@ struct Pose2D {
 
 struct Pixel2DWithCount {
   int x, y;
-  unsigned int hit_count_;
-  unsigned int total_count_ = 1;
-  Pixel2DWithCount(int x_, int y_, unsigned int hit_count_)
-      : x(x_), y(y_), hit_count_(hit_count_) {}
+  unsigned int hit_count_ = 0;
+  unsigned int total_count_ = 0;
+  Pixel2DWithCount(int x_, int y_) : x(x_), y(y_) {}
   /**
    * @brief Return true if the point is considered occupied, otherwise false.
    This is based on the "reflection map". When added to the PointAccumulator,
@@ -45,6 +44,23 @@ struct Pixel2DWithCount {
     return (hit_count_ << 1) > total_count_;
   }
 };
+
+inline size_t hash_pixel2d_with_count(const SimpleRoboticsCppUtils::Pixel2DWithCount& p) {
+  std::hash<long> _hasher;
+// shifting 4 bytes
+constexpr size_t _shift_bits_num = sizeof(int) * 8;
+return _hasher(static_cast<long>(p.x) << _shift_bits_num |
+                static_cast<long>(p.y));
+}
+
+inline size_t hash_pixel2d_with_count(const unsigned int &x, const unsigned int &y) {
+    std::hash<long> _hasher;
+    // shifting 4 bytes
+    constexpr size_t _shift_bits_num = sizeof(int) * 8;
+    return _hasher(static_cast<long>(x) << _shift_bits_num |
+                   static_cast<long>(y));
+  }
+
 inline double dist(const Pose2D &p1, const Pose2D &p2) {
   return std::sqrt((p1.x - p2.x) * (p1.x - p2.x) +
                    (p1.y - p2.y) * (p1.y - p2.y));
@@ -116,15 +132,3 @@ draw_from_icc(const Pose2D &prev_pose,
 }
 
 }; // namespace SimpleRoboticsCppUtils
-
-namespace std {
-template <> struct hash<SimpleRoboticsCppUtils::Pixel2DWithCount> {
-  std::hash<long> _hasher;
-  size_t operator()(const SimpleRoboticsCppUtils::Pixel2DWithCount &p) const {
-    // shifting 4 bytes
-    constexpr size_t _shift_bits_num = sizeof(int) * 8;
-    return _hasher(static_cast<long>(p.x) << _shift_bits_num |
-                   static_cast<long>(p.y));
-  }
-};
-} // namespace std

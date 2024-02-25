@@ -1,3 +1,4 @@
+#include "simple_robotics_cpp_utils/performance_utils.hpp"
 #include "simple_robotics_cpp_utils/rigid2d.hpp"
 #include <cmath>
 #include <gtest/gtest.h>
@@ -26,6 +27,19 @@ TEST(Rigid2DTest, TestTo4D) {
   EXPECT_NEAR(p2.x, 1, 1e-5);
   EXPECT_NEAR(p2.y, 2, 1e-5);
   EXPECT_NEAR(p2.theta, 1, M_PI / 4);
+}
+
+TEST(Rigid2DTest, TestPixel) {
+  // turns out, this map could be resized after hitting a certain size
+  std::unordered_map<int, SimpleRoboticsCppUtils::Pixel2DWithCount> count_map;
+  long init_size = get_memory_usage();
+  for (unsigned int j = 0; j < 100; j++) {
+    count_map.emplace(std::piecewise_construct, std::make_tuple(j),
+                      std::make_tuple(j, j));
+  }
+  auto after_size = get_memory_usage();
+  std::cout << "For obstacle count: " << 100
+            << ", the map size is: " << after_size << "kb" << std::endl;
 }
 
 TEST(Rigid2DTest, TestDrawingFromIcc) {
