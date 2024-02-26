@@ -40,6 +40,12 @@ TEST(Rigid2DTest, TestPixel) {
   auto after_size = get_memory_usage();
   std::cout << "For obstacle count: " << 100
             << ", the map size is: " << after_size << "kb" << std::endl;
+
+  Eigen::Matrix4d T = SimpleRoboticsCppUtils::Pose2D(2.1, 2.1, 0.0).to_se3();
+  const double resolution = 1;
+  const auto pixel = SimpleRoboticsCppUtils::Pixel2DWithCount(T, resolution);
+  EXPECT_EQ(pixel.x, 2);
+  EXPECT_EQ(pixel.y, 2);
 }
 
 TEST(Rigid2DTest, TestDrawingFromIcc) {

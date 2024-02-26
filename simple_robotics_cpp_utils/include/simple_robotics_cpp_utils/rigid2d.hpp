@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -33,6 +34,10 @@ struct Pixel2DWithCount {
   unsigned int hit_count_ = 0;
   unsigned int total_count_ = 0;
   Pixel2DWithCount(int x_, int y_) : x(x_), y(y_) {}
+  Pixel2DWithCount(const Eigen::Ref<Eigen::Matrix4d> T,
+                   const double &resolution)
+      : x(std::floor(T(0, 3) / resolution)), y(T(1, 3) / resolution) {}
+
   /**
    * @brief Return true if the point is considered occupied, otherwise false.
    This is based on the "reflection map". When added to the PointAccumulator,
@@ -45,21 +50,23 @@ struct Pixel2DWithCount {
   }
 };
 
-inline size_t hash_pixel2d_with_count(const SimpleRoboticsCppUtils::Pixel2DWithCount& p) {
+inline size_t
+hash_pixel2d_with_count(const SimpleRoboticsCppUtils::Pixel2DWithCount &p) {
   std::hash<long> _hasher;
-// shifting 4 bytes
-constexpr size_t _shift_bits_num = sizeof(int) * 8;
-return _hasher(static_cast<long>(p.x) << _shift_bits_num |
-                static_cast<long>(p.y));
+  // shifting 4 bytes
+  constexpr size_t _shift_bits_num = sizeof(int) * 8;
+  return _hasher(static_cast<long>(p.x) << _shift_bits_num |
+                 static_cast<long>(p.y));
 }
 
-inline size_t hash_pixel2d_with_count(const unsigned int &x, const unsigned int &y) {
-    std::hash<long> _hasher;
-    // shifting 4 bytes
-    constexpr size_t _shift_bits_num = sizeof(int) * 8;
-    return _hasher(static_cast<long>(x) << _shift_bits_num |
-                   static_cast<long>(y));
-  }
+inline size_t hash_pixel2d_with_count(const unsigned int &x,
+                                      const unsigned int &y) {
+  std::hash<long> _hasher;
+  // shifting 4 bytes
+  constexpr size_t _shift_bits_num = sizeof(int) * 8;
+  return _hasher(static_cast<long>(x) << _shift_bits_num |
+                 static_cast<long>(y));
+}
 
 inline double dist(const Pose2D &p1, const Pose2D &p2) {
   return std::sqrt((p1.x - p2.x) * (p1.x - p2.x) +
