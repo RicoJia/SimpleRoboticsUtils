@@ -46,6 +46,11 @@ TEST(Rigid2DTest, TestPixel) {
   const auto pixel = SimpleRoboticsCppUtils::Pixel2DWithCount(T, resolution);
   EXPECT_EQ(pixel.x, 2);
   EXPECT_EQ(pixel.y, 2);
+
+  auto pose = SimpleRoboticsCppUtils::Pose2D(2.1, 2.1, 0.0);
+  const auto pixel2 = SimpleRoboticsCppUtils::Pixel2DWithCount(pose, resolution);
+  EXPECT_EQ(pixel2.x, 2);
+  EXPECT_EQ(pixel2.y, 2);
 }
 
 TEST(Rigid2DTest, TestDrawingFromIcc) {

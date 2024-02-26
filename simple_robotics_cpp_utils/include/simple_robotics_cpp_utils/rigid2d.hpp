@@ -34,7 +34,9 @@ struct Pixel2DWithCount {
   unsigned int hit_count_ = 0;
   unsigned int total_count_ = 0;
   Pixel2DWithCount(int x_, int y_) : x(x_), y(y_) {}
-  Pixel2DWithCount(const Eigen::Ref<Eigen::Matrix4d> T,
+  Pixel2DWithCount(const Pose2D & pose, const double &resolution)
+      : x(std::floor(pose.x / resolution)), y(pose.y / resolution) {}
+  Pixel2DWithCount(const Eigen::Matrix4d& T,
                    const double &resolution)
       : x(std::floor(T(0, 3) / resolution)), y(T(1, 3) / resolution) {}
 
