@@ -5,6 +5,7 @@
 #include <simple_robotics_cpp_utils/math_utils.hpp>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 using namespace SimpleRoboticsCppUtils;
 
 TEST(Rigid2DTest, TestAngle) {
@@ -48,7 +49,8 @@ TEST(Rigid2DTest, TestPixel) {
   EXPECT_EQ(pixel.y, 2);
 
   auto pose = SimpleRoboticsCppUtils::Pose2D(2.1, 2.1, 0.0);
-  const auto pixel2 = SimpleRoboticsCppUtils::Pixel2DWithCount(pose, resolution);
+  const auto pixel2 =
+      SimpleRoboticsCppUtils::Pixel2DWithCount(pose, resolution);
   EXPECT_EQ(pixel2.x, 2);
   EXPECT_EQ(pixel2.y, 2);
 }
@@ -126,5 +128,42 @@ TEST(Rigid2DTest, TestScrewDisplacement2dToTransform) {
     EXPECT_NEAR(T(0, 3), end_pose.x, 1e-5);
     EXPECT_NEAR(T(1, 3), end_pose.y, 1e-5);
     auto T_3d = transform_4d_to_3d(T);
+  }
+}
+
+TEST(Rigid2DTest, TestUnitVectorPixel) {
+  // start, end
+  std::vector<std::pair<Pixel2DWithCount, Pixel2DWithCount>> start_ends{
+      {{0, 0}, {3, 0}},   {{0, 0}, {3, 1}},   {{0, 0}, {3, 2}},
+      {{0, 0}, {3, 3}},
+
+      {{0, 0}, {2, 3}},   {{0, 0}, {1, 3}},   {{0, 0}, {0, 3}},
+
+      {{0, 0}, {-1, 3}},  {{0, 0}, {-2, 3}},  {{0, 0}, {-3, 3}},
+
+      {{0, 0}, {-3, 2}},  {{0, 0}, {-3, 1}},  {{0, 0}, {-3, 0}},
+
+      {{0, 0}, {-3, -1}}, {{0, 0}, {-3, -2}},
+  };
+  std::vector<Pixel2DWithCount> ground_truths{
+      Pixel2DWithCount(1, 0),  Pixel2DWithCount(1, 0),
+      Pixel2DWithCount(1, 1),  Pixel2DWithCount(1, 1),
+
+      Pixel2DWithCount(1, 1),  Pixel2DWithCount(0, 1),
+      Pixel2DWithCount(0, 1),
+
+      Pixel2DWithCount(0, 1),  Pixel2DWithCount(-1, 1),
+      Pixel2DWithCount(-1, 1),
+
+      Pixel2DWithCount(-1, 1), Pixel2DWithCount(-1, 0),
+      Pixel2DWithCount(-1, 0),
+
+      Pixel2DWithCount(-1, 0), Pixel2DWithCount(-1, -1),
+  };
+
+  for (unsigned i = 0; i < start_ends.size(); i++) {
+    auto unit_vector_end_pixel = get_unit_vector_endpoint_pixel(
+        start_ends[i].first, start_ends[i].second);
+    EXPECT_EQ(unit_vector_end_pixel, ground_truths[i]);
   }
 }

@@ -34,10 +34,9 @@ struct Pixel2DWithCount {
   unsigned int hit_count_ = 0;
   unsigned int total_count_ = 0;
   Pixel2DWithCount(int x_, int y_) : x(x_), y(y_) {}
-  Pixel2DWithCount(const Pose2D & pose, const double &resolution)
+  Pixel2DWithCount(const Pose2D &pose, const double &resolution)
       : x(std::floor(pose.x / resolution)), y(pose.y / resolution) {}
-  Pixel2DWithCount(const Eigen::Matrix4d& T,
-                   const double &resolution)
+  Pixel2DWithCount(const Eigen::Matrix4d &T, const double &resolution)
       : x(std::floor(T(0, 3) / resolution)), y(T(1, 3) / resolution) {}
 
   /**
@@ -92,6 +91,31 @@ inline std::ostream &operator<<(std::ostream &stream,
 
 inline bool operator==(const Pixel2DWithCount &p1, const Pixel2DWithCount &p2) {
   return p1.x == p2.x && p1.y == p2.y;
+}
+
+/**
+ * @brief this function takes in two pixels, get the vector from start to end,
+ * normalize it then return the end pixel of the unit vector.
+ *
+ * @param start : an arbitrary start pixel
+ * @param end : an arbitrary end pixel
+ * @return Pixel2DWithCount : end pixel of the unit vector
+ */
+inline Pixel2DWithCount
+get_unit_vector_endpoint_pixel(const Pixel2DWithCount &start,
+                               const Pixel2DWithCount &end) {
+  Eigen::Vector2d vec(end.x - start.x, end.y - start.y);
+  vec.normalize();
+  auto get_unit_increment = [](const double &x) -> int {
+    if (x > 0.5)
+      return 1;
+    else if (x < -0.5)
+      return -1;
+    else
+      return 0;
+  };
+  return Pixel2DWithCount(get_unit_increment(vec(0)),
+                          get_unit_increment(vec(1)));
 }
 
 /**
