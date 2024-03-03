@@ -58,14 +58,7 @@ TEST(Rigid2DTest, TestPixel) {
 TEST(Rigid2DTest, TestBresenham) {
   auto start = Pixel2DWithCount(-1, 1);
   auto ends = std::vector<Pixel2DWithCount>{
-      {3, 4},
-      // {-3,-4},
-      // {3,-4},
-      // {-3,4},
-      // {7,5},
-      // {-7,-5},
-      // {-7,5},
-      // {7,-5},
+      {3, 4}, {-3, -4}, {3, -4}, {-3, 4}, {7, 5}, {-7, -5}, {-7, 5}, {7, -5},
   };
   for (const auto &end : ends) {
     auto line = SimpleRoboticsCppUtils::bresenham_rico_line(start, end);
