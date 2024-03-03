@@ -55,6 +55,34 @@ TEST(Rigid2DTest, TestPixel) {
   EXPECT_EQ(pixel2.y, 2);
 }
 
+TEST(Rigid2DTest, TestBresenham) {
+  auto start = Pixel2DWithCount(-1, 1);
+  auto ends = std::vector<Pixel2DWithCount>{
+      {3, 4},
+      // {-3,-4},
+      // {3,-4},
+      // {-3,4},
+      // {7,5},
+      // {-7,-5},
+      // {-7,5},
+      // {7,-5},
+  };
+  for (const auto &end : ends) {
+    auto line = SimpleRoboticsCppUtils::bresenham_rico_line(start, end);
+    EXPECT_GT(line.size(), 0);
+    EXPECT_EQ(line[0], start);
+    EXPECT_EQ(line.back(), end);
+    auto last_point = line[0];
+    for (const auto &p : line) {
+      EXPECT_LE(std::abs(p.x - last_point.x), 1);
+      EXPECT_LE(std::abs(p.y - last_point.y), 1);
+      // TODO
+      std::cout << p << std::endl;
+      last_point = p;
+    }
+  }
+}
+
 TEST(Rigid2DTest, TestDrawingFromIcc) {
   // Testing with zero matrix will make lower cholesky decomposition fail
   const double std_dev = 1e-6;

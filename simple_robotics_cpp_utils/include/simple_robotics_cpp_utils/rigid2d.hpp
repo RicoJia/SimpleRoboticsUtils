@@ -118,6 +118,67 @@ get_unit_vector_endpoint_pixel(const Pixel2DWithCount &start,
                           get_unit_increment(vec(1)));
 }
 
+// =============================================================================
+// Algorithms
+// =============================================================================
+
+/**
+ * @brief Bresenham's line algorithm. This algorithm is only using integer math
+ * How this works:
+ *  1. Start at (x,y) = (start.x, start.y)
+ *  2. find increments along x and y: -1 or 1;
+ *  3. If we have a "flat line", that is |dx| > |dy|:
+ *      1. set the initial error to dy/2 because we want to set the line to the
+ * center of the starting line
+ *      2. we increment x by 1 no matter what.
+ *      3. increment y only if the accumulated error n * (dy/dx) is greater than
+ * the current y. That is equivalent to setting error to the sum of dy, and if
+ * error is greater than dx, we increment y. In the meantime, we minus dx from
+ * dy.
+ *  4. Swap the roles of dx and dy for a "steep line",
+ *
+ * @param start starting point
+ * @param end
+ * @return std::vector<Pixel2DWithCount> : list of pixels along a line
+ */
+inline std::vector<Pixel2DWithCount>
+bresenham_rico_line(const Pixel2DWithCount &start,
+                    const Pixel2DWithCount &end) {
+  int dx = std::abs(end.x - start.x);
+  int dy = std::abs(end.y - start.y);
+  int sx = (end.x - start.x) > 0 ? 1 : -1;
+  int sy = (end.y - start.y) > 0 ? 1 : -1;
+  int x = start.x;
+  int y = start.y;
+  std::vector<Pixel2DWithCount> return_vec;
+  return_vec.reserve(dx + dy);
+  if (dx > dy) {
+    int err = dy / 2;
+    while (x != end.x) {
+      return_vec.emplace_back(Pixel2DWithCount(x, y));
+      err += dy;
+      if (err > dx) {
+        y += sy;
+        err -= dx;
+      }
+      x += sx;
+    }
+  } else {
+    int err = dx / 2;
+    while (y != end.y) {
+      return_vec.emplace_back(Pixel2DWithCount(x, y));
+      err += dx;
+      if (err > dy) {
+        x += sx;
+        err -= dy;
+      }
+      y += sy;
+    }
+  }
+  return_vec.emplace_back(end);
+  return return_vec;
+}
+
 /**
  * @brief : Assuming the motion current and previous odom pose is a circular arc
  * (2D screw motion), icc (instantaneous center of curvature). We add a noise to
