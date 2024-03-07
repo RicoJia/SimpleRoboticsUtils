@@ -27,6 +27,10 @@ constexpr double TWO_M_PI = (2 * M_PI);
 // can't use std::sqrt in C++17 in constexpr
 constexpr double ROOT_2PI_INVERSE = 0.3989422804014327;
 
+template <typename T> int sign(const T &val) {
+  return (T(0) < val) - (val < T(0));
+}
+
 /**
  * @brief normalize angle to [0, 2pi], with 2pi-1e-5 being considered 2pi
  *
@@ -38,6 +42,20 @@ inline double normalize_angle_2PI(const double &angle) {
   return_angle = (return_angle < 0) ? return_angle + TWO_M_PI : return_angle;
   return_angle = (TWO_M_PI - return_angle) < 1e-5 ? 0 : return_angle;
   return return_angle;
+}
+
+/**
+ * @brief [ASSUMPTION]: delta is always in (-pi, pi).
+ */
+inline double find_smaller_delta(const double &start_angle,
+                                 const double &end_angle) {
+  double vanilla_proposal = end_angle - start_angle;
+  double supplimentary_proposal =
+      sign(vanilla_proposal) * 2 * M_PI - vanilla_proposal;
+  // return the shorter path
+  return std::abs(vanilla_proposal) < std::abs(supplimentary_proposal)
+             ? vanilla_proposal
+             : supplimentary_proposal;
 }
 
 /**
@@ -54,8 +72,6 @@ inline std::pair<double, double>
 get_2D_screw_displacement(const std::pair<double, double> &odoms,
                           const double &wheel_dist) {
   auto [l, r] = odoms;
-  // TODO
-  std::cout << "(r - l) / wheel_dist" << (r - l) / wheel_dist << std::endl;
   double d_theta = normalize_angle_2PI((r - l) / wheel_dist);
   double d_v = (r + l) / 2;
   return {d_v, d_theta};

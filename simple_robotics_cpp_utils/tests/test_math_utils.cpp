@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <numeric>
+#include <tuple>
 #include <vector>
 
 constexpr size_t SAMPLE_SIZE = 300;
@@ -109,4 +110,20 @@ TEST(MathUtilsTest, RotationAroundZ) {
   assert(
       std::abs(SimpleRoboticsCppUtils::get_2d_rotation_from_z_axis(transform) -
                M_PI_2) < 1e-6);
+}
+
+TEST(MathUtilsTest, TestFindSmallerDelta) {
+  // start angle, end angle, groud truth delta
+  // delta is always in (-pi, pi).
+  std::vector<std::tuple<double, double, double>> test_cases{
+      std::make_tuple(0.0, M_PI / 2, M_PI / 2),
+      std::make_tuple(M_PI / 2, 0.0, -M_PI / 2),
+      std::make_tuple(0.0, 3 * M_PI / 2, M_PI / 2),
+      std::make_tuple(3 * M_PI / 2, 0.0, -M_PI / 2),
+  };
+  for (const auto &test_case : test_cases) {
+    auto [start, end, groudelta] = test_case;
+    EXPECT_NEAR(SimpleRoboticsCppUtils::find_smaller_delta(start, end),
+                groudelta, 1e-6);
+  }
 }
