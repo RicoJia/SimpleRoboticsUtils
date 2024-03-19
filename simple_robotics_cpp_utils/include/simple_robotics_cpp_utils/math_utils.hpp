@@ -116,6 +116,11 @@ inline double get_2d_rotation_from_z_axis(const Eigen::Matrix4d &T) {
   return std::atan2(sin_theta, cos_theta);
 }
 
+inline double get_norm_of_translation(const Eigen::Matrix4d &T) {
+  Eigen::Vector3d delta_translation_vec = T.block<3, 1>(0, 3);
+  return delta_translation_vec.norm();
+}
+
 /**
  * @brief Draw from univariate normal distribution with specified mean and
  * variance
