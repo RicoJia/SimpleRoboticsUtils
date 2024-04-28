@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# exit in case of error. Otherwise, the script could go on.
+set -e
+
+# # Check running as root using $(id -u)
+if [ "$(id -u)" -ne 0 ]; then echo "Please run this script as sudo" 1>&2; exit 1; fi
+# want to mkdir anywhere this script is called.
+THIS_FILE_DIR=$(dirname "$0")
+BUILD_PATH="$THIS_FILE_DIR/build"
+if [ -d $BUILD_PATH ]; then rm -rf $BUILD_PATH; fi
+mkdir $BUILD_PATH
+cd $BUILD_PATH
+cmake ..
+make -j7
+# make test runs ctest, which by default does not capture stdout
+# make test
+ctest -V
+sudo make install
+cd $THIS_FILE_DIR
+rm -rf $BUILD_PATH
+echo "Done"
+
+
+
