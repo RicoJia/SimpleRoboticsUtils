@@ -10,3 +10,6 @@ Dependencies:
 
 This is the Python toolkit. It includes:
 - `rpi_lidar_a1_visualization.py`, an exportable module that could be used as a Rpi Lidar A1 driver in other projects. 
+
+To install: 
+`pip install -e .`
