@@ -131,6 +131,7 @@ if __name__ == "__main__":
             for scan in lidar.iter_scans():
                 for _, angle, distance in scan:
                     # preprocessing
+                    # distance is in milimeters
                     scan_data[min(359, floor(angle))] = distance
                 process_data(scan_data, lcd)
         except KeyboardInterrupt:
