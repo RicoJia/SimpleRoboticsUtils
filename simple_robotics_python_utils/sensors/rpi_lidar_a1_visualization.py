@@ -133,8 +133,6 @@ if __name__ == "__main__":
                     # preprocessing
                     # distance is in milimeters
                     scan_data[min(359, floor(angle))] = distance
-                    #TODO Remember to remove
-                    print(f'Rico: {distance}')
                 process_data(scan_data, lcd)
         except KeyboardInterrupt:
             is_alive = False
