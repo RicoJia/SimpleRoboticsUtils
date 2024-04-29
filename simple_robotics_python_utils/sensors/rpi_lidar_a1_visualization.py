@@ -7,7 +7,6 @@ datasheet: https://www.slamtec.ai/wp-content/uploads/2023/11/LD108_SLAMTEC_rplid
 """
 import os
 from math import cos, sin, pi, floor, sqrt
-import pygame
 from adafruit_rplidar import RPLidar
 from typing import List
 import subprocess
@@ -111,6 +110,7 @@ def process_data(data: List[float], lcd: RPLidar):
 
 
 if __name__ == "__main__":
+    import pygame
     # 1. Set up pygame and the display
     os.putenv("SDL_FBDEV", "/dev/fb1")
     pygame.init()
