@@ -20,13 +20,17 @@ TOTAL_NUM_ANGLES = 360
 
 def find_lidar_usb_device() -> str:
     """Find the USB device path"""
-    DEVICE_PATH = "/dev/serial/by-id"
-    result_str = subprocess.check_output(["ls", DEVICE_PATH], text=True)
-    results = result_str.split("\n")
-    for r in results:
-        if "usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller" in r:
-            return os.path.join(DEVICE_PATH, r)
-    return ""
+    try:
+        DEVICE_PATH = "/dev/serial/by-id"
+        result_str = subprocess.check_output(["ls", DEVICE_PATH], text=True)
+        results = result_str.split("\n")
+        for r in results:
+            if "usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller" in r:
+                return os.path.join(DEVICE_PATH, r)
+    except Exception as e:
+        pass    
+    # This is very ugly, and I have not found a robust way to find the device yet.
+    return "/dev/ttyUSB0"
 
 
 def draw_arrow(screen, color, start, end, arrow_size=10):
