@@ -32,6 +32,25 @@ def find_lidar_usb_device() -> str:
     # This is very ugly, and I have not found a robust way to find the device yet.
     return "/dev/ttyUSB0"
 
+def find_laser_scanner_rpi():
+    serial_path = '/dev/serial/by-path/'
+    device_paths = os.listdir(serial_path)
+    cp210x_devices = []
+    for device in device_paths:
+        full_path = os.path.join(serial_path, device)
+        real_device = os.path.realpath(full_path)  # Get the real device file path (resolves symlinks)
+        try:
+            # Use udevadm to get the device attributes
+            result = subprocess.run(['udevadm', 'info', '--name=' + real_device, '--attribute-walk'],
+                                    text=True, capture_output=True)
+            # Check if the output contains the line indicating it uses the cp210x driver
+            if 'DRIVERS=="cp210x"' in result.stdout:
+                cp210x_devices.append(real_device)
+        except subprocess.CalledProcessError:
+            print(f"Failed to get udev info for {real_device}")
+    if len(cp210x_devices) != 1:
+        raise Exception(f"Found cp210x devices: {cp210x_devices}, expected only 1")
+    return cp210x_devices[0]
 
 def draw_arrow(screen, color, start, end, arrow_size=10):
     """
