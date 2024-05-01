@@ -142,7 +142,7 @@ if __name__ == "__main__":
     lcd.fill((0, 0, 0))
     pygame.display.update()
 
-    # 2. Setup the RPLidar TODO
+    # 2. Setup the RPLidar 
     device_address = find_lidar_usb_device()
     lidar = RPLidar(None, device_address)
 
