@@ -69,8 +69,6 @@ TEST(Rigid2DTest, TestBresenham) {
     for (const auto &p : line) {
       EXPECT_LE(std::abs(p.x - last_point.x), 1);
       EXPECT_LE(std::abs(p.y - last_point.y), 1);
-      // TODO
-      std::cout << p << std::endl;
       last_point = p;
     }
   }

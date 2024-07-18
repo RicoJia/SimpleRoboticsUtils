@@ -1,4 +1,5 @@
 #include "simple_robotics_cpp_utils/cv_utils.hpp"
+#include <iostream>
 
 namespace SimpleRoboticsCppUtils{
     // TODO: Image Window
@@ -25,11 +26,12 @@ namespace SimpleRoboticsCppUtils{
     }
 
     cv::Point2f pixel2cam(const cv::Point2f& pixel, const cv::Mat &K){
-        // K^-1 [u, v, 1] = [p_c, p_y, 1]
-        const float fx = K.at<float>(0, 0);
-        const float fy = K.at<float>(1, 1);
-        const float cx = K.at<float>(0, 2);
-        const float cy = K.at<float>(1, 2);
+        // K^-1 [u, v, 1] = [p_c, p_y, 1]. using const float 
+        // because we are working with Point2f
+        const float fx = K.at<double>(0, 0);
+        const float fy = K.at<double>(1, 1);
+        const float cx = K.at<double>(0, 2);
+        const float cy = K.at<double>(1, 2);
         const float x = pixel.x;
         const float y = pixel.y;
         return {(x - cx)/fx, (y-cy)/fy};
@@ -52,7 +54,7 @@ namespace SimpleRoboticsCppUtils{
                     R.at<double>(2, 0), R.at<double>(2, 1), R.at<double>(2, 2);
         transform.rotate(rotation);
         Eigen::Vector3d translation(t.at<double>(0, 0), t.at<double>(1, 0), t.at<double>(2, 0));
-        transform.translate(translation);
+        transform.pretranslate(translation);
         return transform;
     }
 
