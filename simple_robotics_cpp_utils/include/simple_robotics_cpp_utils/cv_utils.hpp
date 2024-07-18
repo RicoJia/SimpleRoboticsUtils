@@ -23,7 +23,7 @@ double getFrobeniusNorm(const cv::Mat &m);
     [p_c, p_y, 1] = K^-1 [u, v, 1] , we are returning [p_c, p_y]
  * 
  * @param pixel : A single pixel observed
- * @param K : Camera Intrinsics
+ * @param K : Camera Intrinsics, in cv::Mat_<double>(3, 3)
  * @return cv::Point2f : output canonical coordinates of the pixels 
  */
 cv::Point2f pixel2cam(const cv::Point2f& pixel, const cv::Mat &K);

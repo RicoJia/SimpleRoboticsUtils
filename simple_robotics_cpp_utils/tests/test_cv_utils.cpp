@@ -12,7 +12,7 @@ TEST(CvUtilsTest, TestFrobeniusNorm) {
 }
 
 TEST(CvUtilsTest, TestPixel2cam) {
-    cv::Mat K = (cv::Mat_<float>(3, 3) << 800, 0, 320,
+    cv::Mat K = (cv::Mat_<double>(3, 3) << 800, 0, 320,
                                         0, 800, 240,
                                         0, 0, 1);
     cv::Point2f p(400, 300);
