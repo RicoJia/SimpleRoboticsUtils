@@ -62,7 +62,6 @@ Eigen::Isometry3d cv_R_t_to_eigen_isometry3d(const cv::Mat &R,
   return transform;
 }
 
-// TODO: test
 bool invert_mat(const cv::Mat &K, cv::Mat &K_inv) {
   auto det = cv::invert(K, K_inv, cv::DECOMP_SVD);
   return det != 0;

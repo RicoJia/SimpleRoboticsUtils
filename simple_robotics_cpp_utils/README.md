@@ -30,3 +30,14 @@
         simple_robotics_cpp_utils
     )
     ```
+
+## Components
+
+### Loguru Logger
+
+[loguru](https://github.com/emilk/loguru) is a great light weight logger. [Its official documentation is here](https://emilk.github.io/loguru/index.html). Specifically, I am happy with:
+
+1. It supports stream logging e.g., `LOG_S(INFO) << "Some float: " << std::setfill('0') << std::setw(5) << std::setprecision(3) << number;`
+1. Its supports color printing for `WARNING`, and `ERROR`. (This is suppressed by gtest in testing though.)
+1. Its ability to write to a log file.
+1. The printing of stack trace when the system crashes!! It's a very helpful feature

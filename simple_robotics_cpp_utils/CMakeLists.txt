@@ -19,13 +19,9 @@ include_directories(include ${OpenCV_INCLUDE_DIRS})
 file(GLOB SOURCES "src/*.cpp")
 message("GLOB: ${SOURCES}")
 add_library(${PROJECT_NAME} STATIC ${SOURCES})
+target_include_directories(${PROJECT_NAME} PUBLIC ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} Threads::Threads
-                      Eigen3::Eigen)
-target_include_directories(
-  ${PROJECT_NAME}
-  PUBLIC # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-         # $<INSTALL_INTERFACE:include>
-         ${OpenCV_INCLUDE_DIRS})
+                      Eigen3::Eigen dl)
 
 # Stage 5: Create Test Targets
 file(GLOB TEST_SRC_FILES tests/*.cpp)
