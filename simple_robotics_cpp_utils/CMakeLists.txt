@@ -17,8 +17,10 @@ include_directories(include ${OpenCV_INCLUDE_DIRS})
 
 # Stage 4: Create Library Target
 file(GLOB SOURCES "src/*.cpp")
+message("GLOB: ${SOURCES}")
 add_library(${PROJECT_NAME} STATIC ${SOURCES})
-target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} Threads::Threads Eigen3::Eigen)
+target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} Threads::Threads
+                      Eigen3::Eigen)
 target_include_directories(
   ${PROJECT_NAME}
   PUBLIC # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -28,8 +30,14 @@ target_include_directories(
 # Stage 5: Create Test Targets
 file(GLOB TEST_SRC_FILES tests/*.cpp)
 add_executable(${PROJECT_NAME}_test ${TEST_SRC_FILES})
-target_link_libraries(${PROJECT_NAME}_test gtest gtest_main Threads::Threads
-                      Eigen3::Eigen ${OpenCV_LIBS} ${PROJECT_NAME})
+target_link_libraries(
+  ${PROJECT_NAME}_test
+  gtest
+  gtest_main
+  Threads::Threads
+  Eigen3::Eigen
+  ${OpenCV_LIBS}
+  ${PROJECT_NAME})
 # gtest requires the pthread library
 add_test(NAME ${PROJECT_NAME}_test COMMAND ${PROJECT_NAME}_test)
 enable_testing()
