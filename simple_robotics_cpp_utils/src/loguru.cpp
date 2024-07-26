@@ -629,7 +629,8 @@ Text errno_as_text() {
 
 void init(int &argc, char *argv[], const Options &options) {
   CHECK_GT_F(argc, 0, "Expected proper argc/argv");
-  CHECK_EQ_F(argv[argc], nullptr, "Expected proper argc/argv");
+// RICO: commented this out too
+//   CHECK_EQ_F(argv[argc], nullptr, "Expected proper argc/argv");
 
   s_argv0_filename = filename(argv[0]);
 
