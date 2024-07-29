@@ -59,13 +59,19 @@ inline BagParser::BagParser(ros::NodeHandle nh, const std::string &package_name,
 }
 inline BagParser::~BagParser() { bag_.close(); }
 
-// if topic is none, we will return the next topic by the receipt time.
-// If a topic is specified, we have an iterator for each topic that will be used
-// to find its next message
-// TODO: this implementation is NOT ideal, because one can establish a view
-// object for each topic
-// TODO: a huge assumption being made is rosbag iterator is based on
-// chronological order
+/**
+ * @brief Find the next message in the specified topic, and instantiate the corresponding 
+    boost shared_pointer for it
+    TODO: this implementation is NOT ideal, because one can establish a view object 
+    for each topic
+
+    TODO: a huge assumption being made is rosbag iterator is based on
+    chronological order
+
+ * @tparam T - type of message
+ * @param topic : topic
+ * @return boost::shared_ptr<T> : instantiated message, or nullptr
+ */
 template <typename T>
 boost::shared_ptr<T> BagParser::next(const std::optional<std::string> &topic) {
   if (topic) {
