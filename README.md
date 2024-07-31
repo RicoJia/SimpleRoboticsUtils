@@ -3,8 +3,10 @@
 This repo has common tools for robotics development, in C++ and Python. 
 
 Dependencies:
-- C++:
+- `simple_robotics_cpp_utils` 
     - ROS Is NOT a dependency
+- `simple_robotics_ros_cpp_utils`
+    - ROS IS a dependency. You can either copy it to your workspace, or if you use docker, you can mount this as a volume to avoid copying.
 
 ## simple_robotics_python_utils
 

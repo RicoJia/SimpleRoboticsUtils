@@ -81,6 +81,7 @@ inline double angle_of_two_points(const Pose2D &start, const Pose2D &end) {
 inline std::ostream &operator<<(std::ostream &stream, const Pose2D &p) {
   stream << "(x: " << p.x << ", y:" << p.y << ", theta:" << p.theta << ")"
          << std::endl;
+  return stream;
 }
 inline std::ostream &operator<<(std::ostream &stream,
                                 const Pixel2DWithCount &p) {
