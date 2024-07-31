@@ -5,7 +5,7 @@
 
 TEST(LoguruTest, TestBasicLoggingFunctionalities) {
   int argc = 1; // argument count, the program's name itself
-  char *argv[] = {"this_test_program", NULL}; // argument vector
+  char *argv[] = {const_cast<char*>("this_test_program"), NULL}; // argument vector
   loguru::init(argc, argv);
   LOG_SCOPE_FUNCTION(INFO);
 
