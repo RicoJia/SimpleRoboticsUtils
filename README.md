@@ -13,3 +13,7 @@ This is the Python toolkit. It includes:
 
 To install: 
 `pip install -e .`
+
+### simple_robotics_common_udev_rules
+
+This directory is a collection of udev rules for various USB devices (sensors) that I found useful. They shouldn't cause conflicts and are being actively maintained.
