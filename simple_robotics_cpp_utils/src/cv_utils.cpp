@@ -11,7 +11,10 @@ void display_image(const cv::Mat &image) {
   cv::namedWindow("Image window");
   cv::imshow("Image window", image);
   cv::waitKey(0);
-  cv::destroyWindow("Image window");
+  try {
+    cv::destroyWindow("Image window");
+  } catch (const cv::Exception &e) {
+  }
 }
 
 cv::Mat skew_symmetric_mat(const cv::Mat &t) {
