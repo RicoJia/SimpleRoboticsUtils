@@ -37,8 +37,3 @@ target_link_libraries(
 # gtest requires the pthread library
 add_test(NAME ${PROJECT_NAME}_test COMMAND ${PROJECT_NAME}_test)
 enable_testing()
-
-# # Stage 6: Install library install(TARGETS your_library DESTINATION
-# /usr/local/lib) install(TARGETS ${PROJECT_NAME} ARCHIVE DESTINATION lib
-# LIBRARY DESTINATION lib RUNTIME DESTINATION bin ) install(DIRECTORY include/
-# DESTINATION /usr/local/include)

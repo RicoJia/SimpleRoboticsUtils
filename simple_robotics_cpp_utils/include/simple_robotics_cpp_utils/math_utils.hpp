@@ -176,4 +176,6 @@ inline double normal_dist_prob(const double &mean, const double &std_dev,
              : 1.0 / std_dev * ROOT_2PI_INVERSE * exp(exponential_term);
 }
 
+inline double deg2rad(double degrees) { return degrees * (M_PI / 180.0); }
+
 } // namespace SimpleRoboticsCppUtils
