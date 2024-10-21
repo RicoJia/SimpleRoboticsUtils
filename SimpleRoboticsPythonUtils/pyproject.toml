@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "simple-robotics-python-utils"
+version = "1.0.0"
+description = "This is a package that Rico Jia created to include some common tools and workflows in robotics"
+authors = ["Rico Jia"]
+license = "BSD-2"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+opencv-python = "^4.10.0.84"
+posix-ipc = "^1.1.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
