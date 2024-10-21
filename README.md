@@ -1,5 +1,7 @@
 # Simple Robotics Utils
 
+[![Run Tests](https://github.com/RicoJia/SimpleRoboticsUtils/actions/workflows/test.yml/badge.svg)](https://github.com/RicoJia/SimpleRoboticsUtils/actions/workflows/test.yml)
+
 This repo has common tools for robotics development, in C++ and Python. 
 
 Dependencies:
