@@ -30,16 +30,3 @@ jobs:
         run: |
           docker run --rm ros-noetic-simple-robotics \
           /bin/bash -c "cd /root/ws/SimpleRoboticsPythonUtils && pytest"
-      # - name: Set up Python
-      #   uses: actions/setup-python@v2
-      #   with:
-      #     python-version: ${{ matrix.python-version }}
-      # - name: Install dependencies
-      #   run: |
-      #     python -m pip install --upgrade pip
-      #     cd SimpleRoboticsPythonUtils
-      #     pip install .
-      # - name: Run tests
-      #   run: |
-      #     cd SimpleRoboticsPythonUtils/tests  # Change to the correct directory
-      #     pytest
