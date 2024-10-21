@@ -30,13 +30,9 @@ class TestBasePIDController:
         except NotImplementedError:
             pass
 
-    def _test_pid_controller(
-        self, controller: BasePIDController, positive_direction: bool
-    ):
+    def _test_pid_controller(self, controller: BasePIDController, positive_direction: bool):
         def _single_direction_increase_and_overshoot_test(positive_direction: bool):
-            print(
-                f"================== {type(controller)}, positive_direction: {positive_direction} ================= "
-            )
+            print(f"================== {type(controller)}, positive_direction: {positive_direction} ================= ")
             sign = 1.0 if positive_direction else -1.0
             commanded_speed = sign * np.array((0.3, 0.3))
             controller.store_commanded_speed(tuple(commanded_speed))
@@ -49,9 +45,7 @@ class TestBasePIDController:
             for a in increasing_actual_speed_multiplier_seq:
                 controller.store_speed(tuple(a * commanded_speed))
                 pwm = np.asarray(controller.get_pwms()[0])
-                print(
-                    f"Rico: pwm, commanded, actual {pwm, commanded_speed, controller.get_actual_speeds()}"
-                )
+                print(f"Rico: pwm, commanded, actual {pwm, commanded_speed, controller.get_actual_speeds()}")
                 assert np.all(np.sign(pwm) == np.sign(commanded_speed))
 
             # Overshoot test
@@ -64,9 +58,7 @@ class TestBasePIDController:
                 controller.store_speed(tuple(a * commanded_speed))
                 pwm = controller.get_pwms()[0]
                 all_single_pwms.append(pwm)
-                print(
-                    f"Rico: pwm, commanded, actual {pwm, commanded_speed, controller.get_actual_speeds()}"
-                )
+                print(f"Rico: pwm, commanded, actual {pwm, commanded_speed, controller.get_actual_speeds()}")
 
             for i in range(len(all_single_pwms) - 1):
                 if sign * (all_single_pwms[i + 1] - all_single_pwms[i]) >= 0:

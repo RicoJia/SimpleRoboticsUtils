@@ -38,9 +38,7 @@ class TestDiscoverer:
             time.sleep(UDP_BROADCAST_TIMEOUT * 5)
 
         for i in range(reader_num):
-            readers_processes.append(
-                Process(target=reader_worker, args=(recognized_writers,))
-            )
+            readers_processes.append(Process(target=reader_worker, args=(recognized_writers,)))
             readers_processes[-1].start()
         writer = Discoverer(
             topic=TOPIC_NAME,

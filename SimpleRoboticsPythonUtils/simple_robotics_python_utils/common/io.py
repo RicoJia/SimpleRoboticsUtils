@@ -3,6 +3,7 @@ import os
 import typing
 import enum
 
+
 class ANSIColors(enum.Enum):
     RESET = "\033[0m"
     RED = "\033[31m"
@@ -20,9 +21,10 @@ class ANSIColors(enum.Enum):
     BRIGHT_CYAN = "\033[96m"
     BRIGHT_WHITE = "\033[97m"
 
-def ask_user(msg: str, options: typing.List[str], 
-             msg_color: ANSIColors = ANSIColors.GREEN,
-             options_color: ANSIColors = ANSIColors.BLUE) -> str:
+
+def ask_user(
+    msg: str, options: typing.List[str], msg_color: ANSIColors = ANSIColors.GREEN, options_color: ANSIColors = ANSIColors.BLUE
+) -> str:
     if not isinstance(msg_color, ANSIColors) or not isinstance(options_color, ANSIColors):
         raise ValueError("color must be of type ANSIColors")
     print(f"{msg_color.value}{msg}{ANSIColors.RESET.value}")
@@ -31,13 +33,15 @@ def ask_user(msg: str, options: typing.List[str],
     while True:
         try:
             choice = int(input("Please choose a valid option: "))
-            if 0<=choice-1<=len(options):
-                return options[choice-1]
+            if 0 <= choice - 1 <= len(options):
+                return options[choice - 1]
             else:
-                print(f"{ANSIColors.RED.value}Invalid choice. Please enter a number between 1 and {len(options)}.{ANSIColors.RESET.value}")
+                print(
+                    f"{ANSIColors.RED.value}Invalid choice. Please enter a number between 1 and {len(options)}.{ANSIColors.RESET.value}"
+                )
         except ValueError:
             print(f"{ANSIColors.RED.value}Invalid input. Please enter a number.{ANSIColors.RESET.value}")
-        
+
 
 def feature_flag_read(name: str) -> typing.Union[bool, str]:
     flag_val: str = os.environ.get(name).lower()

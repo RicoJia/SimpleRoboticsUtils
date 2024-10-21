@@ -7,7 +7,7 @@ PCD_FILE_NAME = "/home/rico/dream_cartographer_ws/src/dream_cartographer/rgbd_sl
 # Load and visualize the PCD file
 pcd_load = o3d.io.read_point_cloud(PCD_FILE_NAME)
 num_points = len(pcd_load.points)
-print(f'Number of points to visualize: {num_points}')
+print(f"Number of points to visualize: {num_points}")
 # Create a visualizer
 vis = o3d.visualization.Visualizer()
 vis.create_window()

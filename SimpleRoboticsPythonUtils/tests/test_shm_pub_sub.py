@@ -7,6 +7,8 @@ from multiprocessing import Process, Manager
 import time
 
 ARR_SIZE = 20
+
+
 class TestSharedMemoryPubSub:
     def _test_shm_pub_sub(self, use_ros):
         """
@@ -27,6 +29,7 @@ class TestSharedMemoryPubSub:
 
                 if use_ros:
                     import rospy
+
                     rospy.init_node("ros_test_sub")
                 shm_sub = SharedMemorySub(
                     topic="test",
@@ -56,12 +59,8 @@ class TestSharedMemoryPubSub:
                     shm_pub.publish([i for _ in range(ARR_SIZE)])
                     time.sleep(1 / TEST_FREQUENCY)
 
-            reader_proc = Process(
-                target=subscriber_reading_process, args=(messages_received_ls, use_ros)
-            )
-            publisher_proc = Process(
-                target=publisher_publishing_process, args=(use_ros,)
-            )
+            reader_proc = Process(target=subscriber_reading_process, args=(messages_received_ls, use_ros))
+            publisher_proc = Process(target=publisher_publishing_process, args=(use_ros,))
 
             reader_proc.start()
             publisher_proc.start()
@@ -71,7 +70,6 @@ class TestSharedMemoryPubSub:
             for received_arr in messages_received_ls:
                 assert all([int(i) == int(received_arr[0]) for i in received_arr])
                 # assert int(first) == int(i)
-
 
     def test_shm_pub_sub(self):
         self._test_shm_pub_sub(use_ros=False)

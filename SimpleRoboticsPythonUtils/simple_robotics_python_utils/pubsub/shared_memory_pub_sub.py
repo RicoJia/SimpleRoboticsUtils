@@ -115,9 +115,7 @@ class SharedMemoryPubSubBase:
         def init_shm(name: str, size):
             try:
                 shm = posix_ipc.SharedMemory(name, flags=posix_ipc.O_CREX, size=size)
-                self.logger.debug(
-                    f"{self.__class__.__name__} found existing shm for {name}"
-                )
+                self.logger.debug(f"{self.__class__.__name__} found existing shm for {name}")
             except posix_ipc.ExistentialError:
                 shm = posix_ipc.SharedMemory(name)
             mmap_obj = mmap.mmap(shm.fd, shm.size)
@@ -125,17 +123,13 @@ class SharedMemoryPubSubBase:
             return shm, mmap_obj
 
         self.shm, self.mmap = init_shm(self.topic, self.data_size)
-        self.timestamp_shm, self.timestamp_mmap = init_shm(
-            f"{self.topic}_timestamp", self.timestamp_size
-        )
+        self.timestamp_shm, self.timestamp_mmap = init_shm(f"{self.topic}_timestamp", self.timestamp_size)
         try:
             self.logger.debug(f"Found existing semaphore")
             self.sem = posix_ipc.Semaphore(self.topic)
         except posix_ipc.ExistentialError:
             self.logger.debug(f"creating new semaphore")
-            self.sem = posix_ipc.Semaphore(
-                self.topic, flags=posix_ipc.O_CREX, initial_value=1
-            )
+            self.sem = posix_ipc.Semaphore(self.topic, flags=posix_ipc.O_CREX, initial_value=1)
         self.logger.debug(f"Initiated shared memory")
 
     def _remove_shared_memory(self):
@@ -163,9 +157,7 @@ class SharedMemoryPubSubBase:
         self._init_shared_memory()
 
     def __cleanup(self):
-        self.logger.debug(
-            f"{self.__class__.__name__} instance for topic {self.topic} is terminated"
-        )
+        self.logger.debug(f"{self.__class__.__name__} instance for topic {self.topic} is terminated")
         for mmap_obj in (self.mmap, self.timestamp_mmap):
             mmap_obj.close()
 
@@ -180,7 +172,7 @@ class SharedMemoryPub(SharedMemoryPubSubBase):
         no_connection_callback: typing.Callable[[], None] = None,
         debug=False,
         # set to true because its speed performance is better
-        use_ros = True
+        use_ros=True,
     ):
         self.use_ros = use_ros
         if self.use_ros:
@@ -195,7 +187,7 @@ class SharedMemoryPub(SharedMemoryPubSubBase):
                 no_connection_callback,
                 debug,
             )
-        
+
     def publish(self, msg_arr: typing.List[typing.Any]):
         """Publish a message by writing to shared memory.
 
@@ -229,9 +221,7 @@ class SharedMemoryPub(SharedMemoryPubSubBase):
                     # This happens if the previous use of shared memory has a different size
                     except IndexError:
                         self._reset_shared_memory()
-                        self.logger.warning(
-                            "Previous use of the shared memory is incompatible. It's now cleaned"
-                        )
+                        self.logger.warning("Previous use of the shared memory is incompatible. It's now cleaned")
 
 
 class SharedMemorySub(SharedMemoryPubSubBase):
@@ -246,18 +236,20 @@ class SharedMemorySub(SharedMemoryPubSubBase):
         no_connection_callback: typing.Callable[[], None] = None,
         debug=False,
         # set to true because its speed performance is better
-        use_ros = True
+        use_ros=True,
     ):
         self.use_ros = use_ros
         if self.use_ros:
             self._has_connection = False
             _start_connection_callback = start_connection_callback
+
             # get ros subscriber
             def ros_callback(msg):
                 if not self._has_connection and _start_connection_callback:
                     _start_connection_callback()
                 self._has_connection = True
                 callback(msg.data)
+
             self._ros_sub = rospy.Subscriber(topic, Float32MultiArray, ros_callback)
         else:
             super().__init__(
@@ -279,19 +271,10 @@ class SharedMemorySub(SharedMemoryPubSubBase):
         last_msg_timestamp: float = 0
         while threading.main_thread().is_alive():
             if self._discoverer.wait_to_proceed(timeout=3):
-                connection_start_timestamp = (
-                    self._discoverer.get_current_connection_start_time_time()
-                )
+                connection_start_timestamp = self._discoverer.get_current_connection_start_time_time()
                 with self.sem:
-                    current_msg_timestamp = float(
-                        struct.unpack("d", self.timestamp_mmap[: self.timestamp_size])[
-                            0
-                        ]
-                    )
-                    if (
-                        current_msg_timestamp
-                        and current_msg_timestamp != last_msg_timestamp
-                    ):
+                    current_msg_timestamp = float(struct.unpack("d", self.timestamp_mmap[: self.timestamp_size])[0])
+                    if current_msg_timestamp and current_msg_timestamp != last_msg_timestamp:
                         if current_msg_timestamp > connection_start_timestamp:
                             try:
                                 unpacked_msg = struct.unpack(
@@ -303,9 +286,7 @@ class SharedMemorySub(SharedMemoryPubSubBase):
                                 self.logger.debug(f"unpacked_msg: {unpacked_msg}")
                             except struct.error as e:
                                 self._reset_shared_memory()
-                                print(
-                                    "WARNING: Previous use of the shared memory is incompatible. It's now cleaned"
-                                )
+                                print("WARNING: Previous use of the shared memory is incompatible. It's now cleaned")
                 self.rate.sleep()
 
     def __cleanup(self):
@@ -319,15 +300,11 @@ if __name__ == "__main__":
     from std_msgs.msg import Float64MultiArray
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "spawn_type", type=str, choices=["pub", "sub", "ros_pub", "ros_sub"]
-    )
+    parser.add_argument("spawn_type", type=str, choices=["pub", "sub", "ros_pub", "ros_sub"])
     args = parser.parse_args()
     msg_ls = list(range(360))
     if args.spawn_type == "pub":
-        pub = SharedMemoryPub(
-            topic="test_topic", data_type=int, arr_size=len(msg_ls), debug=False
-        )
+        pub = SharedMemoryPub(topic="test_topic", data_type=int, arr_size=len(msg_ls), debug=False)
         for i in range(2000):
             pub.publish(msg_ls)
             time.sleep(0.02)
