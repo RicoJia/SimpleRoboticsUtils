@@ -27,7 +27,11 @@ COPY . /root/ws
 # Build the workspace if necessary (for ROS packages)
 # RUN catkin build || colcon build
 
+RUN python3 -m pip install --user --upgrade pip && \
+    python3 -m pip install pytest
+
 # Entry point (adjust this if your package has a different entry point)
-RUN python3 -m pip install --upgrade pip && \
-    pip3 install SimpleRoboticsPythonUtils
+RUN  python3 -m pip install --user /root/ws/SimpleRoboticsPythonUtils 
+
+
 CMD ["/bin/bash"]
