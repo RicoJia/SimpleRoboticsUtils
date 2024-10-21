@@ -12,10 +12,10 @@ import time
 class ImageRecorder:
     def __init__(self):
         self.bridge = CvBridge()
-        output_bag = "../data/aura32_lobby4.bag" 
-        self.bag = rosbag.Bag(output_bag, 'w')
+        output_bag = "../data/aura32_lobby4.bag"
+        self.bag = rosbag.Bag(output_bag, "w")
         self.lock = Lock()
-        self.shutdown_flag = False 
+        self.shutdown_flag = False
         # Subscribe to the aligned depth and RGB image topics
         rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.depth_callback)
         rospy.Subscriber("/camera/color/image_raw", Image, self.rgb_callback)
@@ -64,8 +64,9 @@ class ImageRecorder:
         self.bag.close()
         cv2.destroyAllWindows()
 
-if __name__ == '__main__':
-    rospy.init_node('image_depth_recorder', anonymous=True)
+
+if __name__ == "__main__":
+    rospy.init_node("image_depth_recorder", anonymous=True)
     image_recorder = ImageRecorder()
     rospy.on_shutdown(image_recorder.shutdown)
     rospy.spin()

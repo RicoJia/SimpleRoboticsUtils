@@ -1,0 +1,32 @@
+name: Run Tests
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.10]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          pip install black
+      # Black linting rules are defined in pyproject.toml
+      - name: Python Linting Check
+        run: |
+          black --check SimpleRoboticsPythonUtils
+      - name: Build ROS Noetic Docker Image
+        run: docker build -f Dockerfile_test_container . -t ros-noetic-simple-robotics
+      # Run tests inside the container
+      - name: Run tests in ROS Noetic container
+        run: |
+          docker run --rm ros-noetic-simple-robotics \
+          /bin/bash -c "cd /root/ws/SimpleRoboticsPythonUtils && pytest"

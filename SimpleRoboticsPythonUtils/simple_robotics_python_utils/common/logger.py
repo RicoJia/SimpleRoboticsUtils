@@ -25,9 +25,7 @@ class ColorFormatter(logging.Formatter):
 
     def format(self, record):
         record.name = f"{ColorCode.CYAN}{record.name}{ColorCode.RESET}"
-        record.levelname = (
-            f"{self.COLOR_MAP[record.levelno]}{record.levelname}{ColorCode.RESET}"
-        )
+        record.levelname = f"{self.COLOR_MAP[record.levelno]}{record.levelname}{ColorCode.RESET}"
         msg = logging.Formatter.format(self, record)
         parts = msg.split(" - ", maxsplit=1)
         parts[0] = f"{ColorCode.MAGENTA}{parts[0]}{ColorCode.RESET}"
@@ -44,9 +42,7 @@ def get_logger(name: str, print_level: str = "INFO"):
         logger.setLevel(level)
         console_handler = logging.StreamHandler()
         console_handler.setLevel(level)
-        formatter = ColorFormatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        formatter = ColorFormatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
     return logger

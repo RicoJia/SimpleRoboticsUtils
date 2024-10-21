@@ -1,0 +1,37 @@
+# Use official ROS Noetic base image
+FROM ros:noetic-ros-core
+
+# Set up environment variables for ROS Noetic
+ENV ROS_DISTRO=noetic
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install necessary dependencies (e.g., Python3, pip, build tools)
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-catkin-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install ROS dependencies (add other dependencies if needed)
+RUN apt-get update && apt-get install -y \
+    ros-noetic-catkin \
+    ros-noetic-roscpp \
+    ros-noetic-std-msgs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+WORKDIR /root/ws
+
+# Copy the code into the container
+COPY . /root/ws
+
+# Build the workspace if necessary (for ROS packages)
+# RUN catkin build || colcon build
+
+RUN python3 -m pip install --user --upgrade pip && \
+    python3 -m pip install pytest
+
+# Entry point (adjust this if your package has a different entry point)
+RUN  python3 -m pip install --user /root/ws/SimpleRoboticsPythonUtils 
+
+
+CMD ["/bin/bash"]

@@ -3,10 +3,11 @@
 import numpy as np
 import typing
 
+
 def handcrafted_non_maximum_suppresion(scores: np.ndarray, boxes: np.ndarray, overlapping_thre: float = 0.3) -> typing.List:
     # sort scores into descending order and store their indices
     score_order = scores.argsort()[::-1]
-    
+
     # Store individual coordinates in lists.
     x1s = boxes[:, 0]
     y1s = boxes[:, 1]
@@ -36,6 +37,6 @@ def handcrafted_non_maximum_suppresion(scores: np.ndarray, boxes: np.ndarray, ov
         # TODO, why np.where returns an array?
         independent_box_indices = np.where(ious <= overlapping_thre)[0]
         # because ious, independent_box_indices are arrays starting at the next element, we want to add 1 here.
-        score_order = score_order[independent_box_indices+1]
+        score_order = score_order[independent_box_indices + 1]
 
     return keep

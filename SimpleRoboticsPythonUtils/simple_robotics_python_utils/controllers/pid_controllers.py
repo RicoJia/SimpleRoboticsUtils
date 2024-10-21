@@ -26,9 +26,7 @@ class BasePIDController:
 
     ######################################### Wheel Vel Update Functions #########################################
     def _reset_pid_params(self):
-        self.errors: Deque[np.ndarray] = deque(
-            [np.zeros(2) for _ in range(NUM_ERRORS)], maxlen=NUM_ERRORS
-        )
+        self.errors: Deque[np.ndarray] = deque([np.zeros(2) for _ in range(NUM_ERRORS)], maxlen=NUM_ERRORS)
         self.last_pwm: np.ndarray = np.zeros(2)
 
     def store_speed(self, speed: Tuple[float, float]) -> None:
@@ -76,9 +74,7 @@ class BasePIDController:
         if self.getting_speed_updates and self.getting_commanded_wheel_vel:
             # e[k] = desired_speeds[k] - motor_speeds[k]
             e = np.asarray(self.desired_speeds) - self.motor_speeds
-            current_pwm = self.calc_pid(
-                e, self.errors, self.kp, self.ki, self.kd, self.last_pwm
-            )
+            current_pwm = self.calc_pid(e, self.errors, self.kp, self.ki, self.kd, self.last_pwm)
             self.errors.appendleft(e)
             self.last_pwm = current_pwm
             return tuple(current_pwm)
@@ -127,11 +123,7 @@ class IncrementalPIDController(BasePIDController):
             np.ndarray: current pwm
         """
         # u[k] = kp * (e[k] - e[k-1]) + ki * e[k] + kd * (e[k] - 2 * e[k-1] + e[k-2])
-        u = (
-            kp * (e - past_errors[0])
-            + ki * e
-            + kd * (e - 2 * past_errors[0] + past_errors[1])
-        )
+        u = kp * (e - past_errors[0]) + ki * e + kd * (e - 2 * past_errors[0] + past_errors[1])
         # TODO
         # print(f'p: {kp * (e - past_errors[0])}, i: {ki * e}, d: {kd * (e - 2 * past_errors[0] + past_errors[1])}, last_pwm: {last_pwm}')
         current_pwm = u + last_pwm
@@ -175,11 +167,7 @@ class RegularDiscretePIDController(BasePIDController):
             np.ndarray: current pwm
         """
         # u[k] = kp * (e[k] - e[k-1]) + ki * e[k] + kd * (e[k] - 2 * e[k-1] + e[k-2])
-        u = (
-            kp * e
-            + ki * (sum(self.errors)) / len(self.errors)
-            + kd * (e - past_errors[0])
-        )
+        u = kp * e + ki * (sum(self.errors)) / len(self.errors) + kd * (e - past_errors[0])
         # # TODO
         # print(
         #     f"p: {kp * e}, i: {ki * (e + past_errors[0] + past_errors[1])}, d: {kd * (e  - past_errors[0])}"
@@ -222,13 +210,9 @@ class FeedforwardIncrementalPIDController(IncrementalPIDController):
     ):
         super().__init__(left_params, right_params)
 
-        self._load_feedforward_terms(
-            left_feedforward_terms_file, right_feedforward_terms_file
-        )
+        self._load_feedforward_terms(left_feedforward_terms_file, right_feedforward_terms_file)
 
-    def _load_feedforward_terms(
-        self, left_feedforward_terms_file, right_feedforward_terms_file
-    ):
+    def _load_feedforward_terms(self, left_feedforward_terms_file, right_feedforward_terms_file):
         # Build
         def _load_single_feedforward_terms(
             feedforward_terms_file: str,
@@ -274,33 +258,20 @@ class FeedforwardIncrementalPIDController(IncrementalPIDController):
     def _find_closest_feedforward_pwms(self) -> np.ndarray:
         # Use binary search for self.desired_speeds
         # TODO: one potential improvement is to use interpolation, or return the NEAREST smaller, or larger term
-        def _binary_search_for_index(
-            feedforward_pwms: List[Tuple[float, float]], desired_speed: float
-        ) -> int:
+        def _binary_search_for_index(feedforward_pwms: List[Tuple[float, float]], desired_speed: float) -> int:
             if desired_speed < 0:
                 next_smaller_num_offset = 0
             else:
                 next_smaller_num_offset = -1
-            index_closest_smaller = (
-                bisect.bisect_left(feedforward_pwms, self.desired_speeds[0])
-                + next_smaller_num_offset
-            )
+            index_closest_smaller = bisect.bisect_left(feedforward_pwms, self.desired_speeds[0]) + next_smaller_num_offset
             index_closest_smaller = max(0, index_closest_smaller)
             index_closest_smaller = min(index_closest_smaller, len(feedforward_pwms))
             return index_closest_smaller
 
         return np.array(
             [
-                self.left_feedforward_speeds[
-                    _binary_search_for_index(
-                        self.left_feedforward_pwms, self.desired_speeds[0]
-                    )
-                ],
-                self.right_feedforward_speeds[
-                    _binary_search_for_index(
-                        self.right_feedforward_pwms, self.desired_speeds[1]
-                    )
-                ],
+                self.left_feedforward_speeds[_binary_search_for_index(self.left_feedforward_pwms, self.desired_speeds[0])],
+                self.right_feedforward_speeds[_binary_search_for_index(self.right_feedforward_pwms, self.desired_speeds[1])],
             ]
         )
 
@@ -329,9 +300,7 @@ class FeedforwardIncrementalPIDController(IncrementalPIDController):
             else:
                 e = np.asarray(self.desired_speeds) - self.motor_speeds
 
-            incremental_pid_pwm = self.calc_pid(
-                e, self.errors, self.kp, self.ki, self.kd, self.last_pwm
-            )
+            incremental_pid_pwm = self.calc_pid(e, self.errors, self.kp, self.ki, self.kd, self.last_pwm)
             pwm_output = incremental_pid_pwm + feedforward_term
             pwm_output = np.clip(pwm_output, MIN_PWM, MAX_PWM)
             self.errors.appendleft(e)
