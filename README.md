@@ -43,7 +43,7 @@ When you want to release a new version, update the version number in your `setup
 
 ```bash
 git tag v1.0.0
-git push origin v1.0.0
+git push origin v1.0.0 -m "message"
 ```
 
 This will trigger the publish workflow and automatically push the package to PyPI.
@@ -52,4 +52,10 @@ This will trigger the publish workflow and automatically push the package to PyP
 - Build the package using build and twine.
 - Publish the package to PyPI.
 
+Additionally, if you want to update a tag, you can:
 
+```bash
+git tag -d v1.0.0
+git push origin :refs/tags/v1.0.0
+
+```
