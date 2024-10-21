@@ -16,6 +16,13 @@ jobs:
         python-version: [3.10]
     steps:
       - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      # Linting step with flake8
+      - name: Lint code with flake8
+        run: |
+          flake8 SimpleRoboticsPythonUtils
       - name: Build ROS Noetic Docker Image
         run: docker build -f Dockerfile_test_container . -t ros-noetic-simple-robotics
       # Run tests inside the container
@@ -23,7 +30,6 @@ jobs:
         run: |
           docker run --rm ros-noetic-simple-robotics \
           /bin/bash -c "cd /root/ws/SimpleRoboticsPythonUtils && pytest"
-
       # - name: Set up Python
       #   uses: actions/setup-python@v2
       #   with:
