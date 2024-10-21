@@ -31,7 +31,25 @@ This directory is a collection of udev rules for various USB devices (sensors) t
     -v simple_robotics_common_udev_rules:/etc/udev/rules.d \
     -v /dev/bus/usb:/dev/bus/usb \
     ...
+    ```
 
 ### Components
 
 - `99-realsense-libusb.rules` librealsense's udev rules
+
+## Release Workflow
+
+When you want to release a new version, update the version number in your `setup.py` or `pyproject.toml`, then commit and push a new tag to master:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+This will trigger the publish workflow and automatically push the package to PyPI.
+
+- Trigger when a new tag starting with v (e.g., v1.0.0) is pushed to the master branch.
+- Build the package using build and twine.
+- Publish the package to PyPI.
+
+
