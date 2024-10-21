@@ -17,7 +17,7 @@ jobs:
   steps:
     - uses: actions/checkout@v2
     - name: Build ROS Noetic Docker Image
-      run: cd SimpleRoboticsPythonUtils && docker build -f Dockerfile_test_container . -t ros-noetic-simple-robotics
+      run: docker build -f Dockerfile_test_container . -t ros-noetic-simple-robotics
     # Run tests inside the container
     - name: Run tests in ROS Noetic container
       run: |

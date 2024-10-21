@@ -9,7 +9,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-catkin-tools \
-    python3-colcon-common-extensions \
     && rm -rf /var/lib/apt/lists/*
 
 # Install ROS dependencies (add other dependencies if needed)
