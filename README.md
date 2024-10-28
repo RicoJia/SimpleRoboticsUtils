@@ -52,10 +52,8 @@ This will trigger the publish workflow and automatically push the package to PyP
 - Build the package using build and twine.
 - Publish the package to PyPI.
 
-Additionally, if you want to update a tag, you can:
+To contribute, after making changes, one can:
 
 ```bash
-git tag -d v1.0.0
-git push origin :refs/tags/v1.0.0
-
+git tag -d v1.0.0  && git push origin :refs/tags/v1.0.0 && git tag -a v1.0.0 -m "pubsub, io, controllers, and basic handcrafted computer vision components && git push origin v1.0.0" && git push origin v1.0.0
 ```
