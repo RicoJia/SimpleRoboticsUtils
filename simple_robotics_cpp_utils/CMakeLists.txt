@@ -38,4 +38,13 @@ target_link_libraries(
 add_test(NAME ${PROJECT_NAME}_test COMMAND ${PROJECT_NAME}_test)
 enable_testing()
 
+install(TARGETS ${PROJECT_NAME}
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+)
+
+# Install header files
+install(DIRECTORY include/ DESTINATION include)
+
 # TODO: custom space install 
