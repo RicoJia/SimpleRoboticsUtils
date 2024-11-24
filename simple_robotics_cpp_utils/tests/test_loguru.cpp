@@ -2,6 +2,7 @@
 #include "simple_robotics_cpp_utils/loguru.hpp"
 
 #include <gtest/gtest.h>
+#include <iomanip>
 
 TEST(LoguruTest, TestBasicLoggingFunctionalities) {
   int argc = 1; // argument count, the program's name itself
