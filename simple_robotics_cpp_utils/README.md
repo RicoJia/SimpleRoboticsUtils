@@ -11,29 +11,23 @@ Some things to note:
 
 ## Usage
 
-- Vanilla Usage
-
-```bash
-mkdir build
-cd build
-cmake ..
-make -j7 
-```
-
-- Or, To install it to `/usr/local/bin` so it's available system wide, 
+- To install,  installed to a Then, 
 
 ```bash
 ./build.sh 
 ```
+    - Without any any input args, it will be installed to `/usr/local/bin` so it's available system wide.
+    - If an environment variable `CUSTOM_INSTALL_PATH` is defined, it will be installed there
 
 - To include in your project, in CMakeLists.txt, you can:
 
 ```cmake
-set(SIMPLE_ROBOTICS_CPP_UTILS_DIR <PATH_TO_THIS_DIR>)
-add_subdirectory( ${SIMPLE_ROBOTICS_CPP_UTILS_DIR}
-${CMAKE_BINARY_DIR}/simple_robotics_cpp_utils)
+set(CMAKE_PREFIX_PATH "$ENV{CUSTOM_INSTALL_PATH}" ${CMAKE_PREFIX_PATH})
+if(NOT DEFINED ENV{CUSTOM_INSTALL_PATH})
+  message(FATAL_ERROR "CUSTOM_INSTALL_PATH environment variable is not set.")
+endif()
 include_directories(
-    ${SIMPLE_ROBOTICS_CPP_UTILS_DIR}/include
+  $ENV{CUSTOM_INSTALL_PATH}/include
 )
 target_link_libraries(<YOUR_EXECUTABLE>
     simple_robotics_cpp_utils

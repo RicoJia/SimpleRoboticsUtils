@@ -18,14 +18,18 @@ include_directories(include ${OpenCV_INCLUDE_DIRS})
 # Stage 4: Create Library Target
 file(GLOB SOURCES "src/*.cpp")
 message("GLOB: ${SOURCES}")
-add_library(${PROJECT_NAME} STATIC ${SOURCES})
+add_library(
+  ${PROJECT_NAME} STATIC
+  ${SOURCES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} Threads::Threads
-                      Eigen3::Eigen dl)
+target_link_libraries(
+  ${PROJECT_NAME} ${OpenCV_LIBS} Threads::Threads Eigen3::Eigen dl)
 
 # Stage 5: Create Test Targets
 file(GLOB TEST_SRC_FILES tests/*.cpp)
-add_executable(${PROJECT_NAME}_test ${TEST_SRC_FILES})
+add_executable(
+  ${PROJECT_NAME}_test
+  ${TEST_SRC_FILES})
 target_link_libraries(
   ${PROJECT_NAME}_test
   gtest
@@ -38,13 +42,13 @@ target_link_libraries(
 add_test(NAME ${PROJECT_NAME}_test COMMAND ${PROJECT_NAME}_test)
 enable_testing()
 
-install(TARGETS ${PROJECT_NAME}
-    RUNTIME DESTINATION bin
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-)
+install(
+  TARGETS ${PROJECT_NAME}
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib)
 
 # Install header files
 install(DIRECTORY include/ DESTINATION include)
 
-# TODO: custom space install 
+# TODO: custom space install

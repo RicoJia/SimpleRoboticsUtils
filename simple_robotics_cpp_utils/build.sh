@@ -13,7 +13,7 @@ if [ -d $BUILD_PATH ]; then rm -rf $BUILD_PATH; fi
 mkdir $BUILD_PATH
 cd $BUILD_PATH
 # This is assuming the docker environment already has env var CUSTOM_INSTALL_PATH
-cmake -DCMAKE_INSTALL_PREFIX=${CUSTOM_INSTALL_PATH} ..
+cmake -DCMAKE_INSTALL_PREFIX=${CUSTOM_INSTALL_PATH:-/usr/local/bin} ..
 make -j7
 # make test runs ctest, which by default does not capture stdout
 # make test
