@@ -4,6 +4,7 @@ from rosbags.rosbag1 import Reader, Writer
 from rosbags.typesys import get_types_from_msg, get_typestore, Stores, base
 from typing import Callable, Dict
 
+
 def read_ros1_do_stuff_save_ros1(input_path: str, output_path: str, do_stuff: Dict[str, Callable] = {}):
     """
     Reads a ROS1 bag file, processes messages for specified topics using provided callables,
@@ -27,11 +28,7 @@ def read_ros1_do_stuff_save_ros1(input_path: str, output_path: str, do_stuff: Di
             # Add connections to the output bag
             for connection in reader.connections:
                 try:
-                    conn = writer.add_connection(
-                        connection.topic,
-                        connection.msgtype,
-                        typestore=typestore
-                    )
+                    conn = writer.add_connection(connection.topic, connection.msgtype, typestore=typestore)
                     conn_map[connection.id] = conn
                 except base.TypesysError as e:
                     print(f"Warning: {e}")
