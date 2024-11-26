@@ -43,7 +43,7 @@ When you want to release a new version, update the version number in your `setup
 
 ```bash
 git tag v1.0.0
-git push origin v1.0.0 -m "message"
+git push origin v1.0.0 
 ```
 
 This will trigger the publish workflow and automatically push the package to PyPI.
