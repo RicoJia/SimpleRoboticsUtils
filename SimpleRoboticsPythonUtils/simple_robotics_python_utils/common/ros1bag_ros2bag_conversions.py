@@ -8,6 +8,7 @@ def read_ros1_do_stuff_save_ros1(input_path: str, output_path: str, do_stuff: Di
     """
     Reads a ROS1 bag file, processes messages for specified topics using provided callables,
     and saves the result in a new bag with the same message types and topic names.
+    This function is actually INDEPENDENT of ROS
 
     Args:
         input_path (str): Path to the input ROS1 bag.
