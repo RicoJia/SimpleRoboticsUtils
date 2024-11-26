@@ -10,6 +10,7 @@ readme = "README.md"
 python = "^3.8"
 opencv-python = "^4.10.0.84"
 posix-ipc = "^1.1.1"
+rosbags="0.10.6"
 
 [build-system]
 requires = ["poetry-core"]
