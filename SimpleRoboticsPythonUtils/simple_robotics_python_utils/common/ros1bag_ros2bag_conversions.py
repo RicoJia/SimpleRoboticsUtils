@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import rosbags
 from rosbags.rosbag1 import Reader, Writer
 from rosbags.typesys import get_types_from_msg, get_typestore, Stores, base
 from typing import Callable, Dict
