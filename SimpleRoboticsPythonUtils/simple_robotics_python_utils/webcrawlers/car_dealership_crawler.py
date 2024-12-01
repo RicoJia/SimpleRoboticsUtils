@@ -45,9 +45,11 @@ class Car:
     image_url: str
     dealership: Dealership
 
+
 headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36'
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36"
 }
+
 
 def save_cars_to_pdf(cars: List[Car], file_path: str):
 
@@ -193,7 +195,7 @@ cars = []
 for dealership in dealerships:
 
     driver.get(dealership.url)
-    WebDriverWait(driver, 100).until(lambda driver: driver.execute_script('return document.readyState') == 'complete')
+    WebDriverWait(driver, 100).until(lambda driver: driver.execute_script("return document.readyState") == "complete")
     # Wait until the document is fully loaded
     # try:
     #     WebDriverWait(driver, 10).until(
@@ -202,7 +204,7 @@ for dealership in dealerships:
     # except Exception:
     #     print("Page did not load completely within 10 seconds.")
 
-    time.sleep(5) 
+    time.sleep(5)
     html = driver.page_source
     soup = BeautifulSoup(html, "html.parser")
     dealership.parse_func(soup=soup, dealership=dealership, cars=cars)
