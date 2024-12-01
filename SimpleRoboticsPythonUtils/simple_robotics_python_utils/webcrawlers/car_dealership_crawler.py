@@ -196,14 +196,6 @@ for dealership in dealerships:
 
     driver.get(dealership.url)
     WebDriverWait(driver, 100).until(lambda driver: driver.execute_script("return document.readyState") == "complete")
-    # Wait until the document is fully loaded
-    # try:
-    #     WebDriverWait(driver, 10).until(
-    #         lambda d: d.execute_script("return document.readyState") == "complete"
-    #     )
-    # except Exception:
-    #     print("Page did not load completely within 10 seconds.")
-
     time.sleep(5)
     html = driver.page_source
     soup = BeautifulSoup(html, "html.parser")
