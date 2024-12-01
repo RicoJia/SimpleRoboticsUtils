@@ -186,20 +186,21 @@ dealerships = [
     ),
 ]
 
-chrome_options = Options()
-chrome_options.add_argument("--headless")  # Enable headless mode
-chrome_options.add_argument("--no-sandbox")  # Avoid sandboxing (useful on Linux servers)
-chrome_options.add_argument("--disable-dev-shm-usage")  # Prevent shared memory issues on Linux
-driver = webdriver.Chrome(options=chrome_options)  # Ensure the Chrome driver is installed and in PATH
-cars = []
-for dealership in dealerships:
+if __name__ == "__main__":
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # Enable headless mode
+    chrome_options.add_argument("--no-sandbox")  # Avoid sandboxing (useful on Linux servers)
+    chrome_options.add_argument("--disable-dev-shm-usage")  # Prevent shared memory issues on Linux
+    driver = webdriver.Chrome(options=chrome_options)  # Ensure the Chrome driver is installed and in PATH
+    cars = []
+    for dealership in dealerships:
 
-    driver.get(dealership.url)
-    WebDriverWait(driver, 100).until(lambda driver: driver.execute_script("return document.readyState") == "complete")
-    time.sleep(5)
-    html = driver.page_source
-    soup = BeautifulSoup(html, "html.parser")
-    dealership.parse_func(soup=soup, dealership=dealership, cars=cars)
+        driver.get(dealership.url)
+        WebDriverWait(driver, 100).until(lambda driver: driver.execute_script("return document.readyState") == "complete")
+        time.sleep(5)
+        html = driver.page_source
+        soup = BeautifulSoup(html, "html.parser")
+        dealership.parse_func(soup=soup, dealership=dealership, cars=cars)
 
-driver.quit()
-save_cars_to_pdf(cars, "car_report.pdf")
+    driver.quit()
+    save_cars_to_pdf(cars, "car_report.pdf")
