@@ -1,6 +1,7 @@
 #!/usr/bin/env/ python3
 
 """
+This script pulls Toyota RAV4 information and save them into a PDF.
 TODO: this script can be checked on 
 https://www.toyota.com/search-inventory/model/rav4hybrid/?zipcode=77008&showCompareVehicle=false&distance=20&dealerDistance%5B%5D=42138%2C42087%2C42073%2C42270`
 Joe Myers one is hard coded
@@ -11,17 +12,14 @@ from bs4 import BeautifulSoup
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 import time
 from PIL import Image
 import os
 
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
-from email.mime.image import MIMEImage
 import requests
 from io import BytesIO
 
@@ -47,6 +45,9 @@ class Car:
     image_url: str
     dealership: Dealership
 
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36'
+}
 
 def save_cars_to_pdf(cars: List[Car], file_path: str):
 
@@ -73,7 +74,7 @@ def save_cars_to_pdf(cars: List[Car], file_path: str):
         y_position += 10
 
         # Download and add the image
-        response = requests.get(car.image_url)
+        response = requests.get(car.image_url, headers=headers)
         if response.status_code == 200:
             image_data = BytesIO(response.content)
             image = Image.open(image_data)
@@ -90,6 +91,8 @@ def save_cars_to_pdf(cars: List[Car], file_path: str):
             # Add the image
             pdf.image(image_path, x=10, y=y_position, w=100)
             y_position += 60  # Adjust based on image height
+        else:
+            print("Car image url fetching failed: ", car.image_url)
 
         # Add spacing between entries
         y_position += 10
@@ -111,7 +114,6 @@ def parse_don_mcgill(soup, dealership, cars):
     listings = soup.find_all("div", class_="listing")
 
     for listing in listings:
-        # Get the model (from `data-ag-model` attribute)
         model = listing.get("data-ag-model", "N/A")
         trim = listing.get("data-ag-trim", "N/A")
         if "Premium" in trim:
@@ -191,9 +193,16 @@ cars = []
 for dealership in dealerships:
 
     driver.get(dealership.url)
-    # Wait for the page to load fully
-    time.sleep(5)
-    # driver.implicitly_wait(10)
+    WebDriverWait(driver, 100).until(lambda driver: driver.execute_script('return document.readyState') == 'complete')
+    # Wait until the document is fully loaded
+    # try:
+    #     WebDriverWait(driver, 10).until(
+    #         lambda d: d.execute_script("return document.readyState") == "complete"
+    #     )
+    # except Exception:
+    #     print("Page did not load completely within 10 seconds.")
+
+    time.sleep(5) 
     html = driver.page_source
     soup = BeautifulSoup(html, "html.parser")
     dealership.parse_func(soup=soup, dealership=dealership, cars=cars)
